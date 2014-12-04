@@ -45,113 +45,68 @@ endforeach()
 set(${generated_files} ${_compile_ispc_generated_files})
 endmacro(compile_ispc)
 
+######################
+# Compile a list of cuda files
+macro(add_source_dir dir)
+add_subdirectory(${dir})
+# reset the output variable
+
+# Find all cuda src files
+file(GLOB SRCS ${CMAKE_CURRENT_SOURCE_DIR}/${dir}/*.cc)
+file(GLOB CU_SRCS ${CMAKE_CURRENT_SOURCE_DIR}/${dir}/*.cu)
+file(GLOB HDRS ${CMAKE_CURRENT_SOURCE_DIR}/${dir}/*.h ${CMAKE_CURRENT_SOURCE_DIR}/${dir}/*.cuh)
+# add to the source group
+list(APPEND _freud_sources ${SRCS} ${HDRS})
+list(APPEND _freud_cu_sources ${CU_SRCS})
+source_group(${dir} FILES ${CU_SRCS} ${HDRS})
+
+endmacro(add_source_dir)
+
+######################
+
+set(_freud_sources "")
+set(_freud_cu_sources "")
+
+# have to manually set density because of templating
+set(_dir_list util trajectory bootstrap cluster interface kspace
+    lindemann locality molfile order pairing parallel
+    pmft shapesplit sphericalharmonicorderparameters viz voronoi)
+
+if (ENABLE_CUDA)
+list(APPEND _dir_list cudapmft)
+endif (ENABLE_CUDA)
+
+foreach (dir ${_dir_list})
+add_source_dir(${dir})
+include_directories(${CMAKE_CURRENT_SOURCE_DIR}/${dir})
+endforeach (dir)
+
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}
-                    ${CMAKE_CURRENT_SOURCE_DIR}/trajectory
-                    ${CMAKE_CURRENT_SOURCE_DIR}/util
-                    ${CMAKE_CURRENT_SOURCE_DIR}/locality
-                    ${CMAKE_CURRENT_SOURCE_DIR}/cluster
                     ${CMAKE_CURRENT_SOURCE_DIR}/density
-                    ${CMAKE_CURRENT_SOURCE_DIR}/voronoi
-                    ${CMAKE_CURRENT_SOURCE_DIR}/kspace
-                    ${CMAKE_CURRENT_SOURCE_DIR}/lindemann
-                    ${CMAKE_CURRENT_SOURCE_DIR}/order
-                    ${CMAKE_CURRENT_SOURCE_DIR}/interface
-                    ${CMAKE_CURRENT_SOURCE_DIR}/sphericalharmonicorderparameters
-                    ${CMAKE_CURRENT_SOURCE_DIR}/pairing
-                    ${CMAKE_CURRENT_SOURCE_DIR}/pmft
-                    ${CMAKE_CURRENT_SOURCE_DIR}/bootstrap
-                    ${CMAKE_CURRENT_SOURCE_DIR}/shapesplit
-                    ${CMAKE_CURRENT_SOURCE_DIR}/viz
-                    ${CMAKE_CURRENT_SOURCE_DIR}/parallel
                     ${CMAKE_CURRENT_BINARY_DIR}
                     )
 
 
-
-set(SOURCES trajectory/trajectory.cc
-            trajectory/trajectory.h
-            trajectory/DCDLoader.cc
-            trajectory/DCDLoader.h
-            locality/LinkCell.cc
-            locality/LinkCell.h
-            locality/NearestNeighbors.h
-            locality/NearestNeighbors.cc
+list(APPEND _freud_sources
             density/RDF.cc
             density/RDF.h
             density/GaussianDensity.cc
             density/GaussianDensity.h
             density/LocalDensity.h
             density/LocalDensity.cc
-            voronoi/VoronoiBuffer.h
-            voronoi/VoronoiBuffer.cc
-            kspace/kspace.h
-            kspace/kspace.cc
-            lindemann/lindemann.h
-            lindemann/lindemann.cc
-            cluster/Cluster.h
-            cluster/Cluster.cc
-            cluster/ClusterProperties.h
-            cluster/ClusterProperties.cc
-            order/HexOrderParameter.h
-            order/HexOrderParameter.cc
-            order/LocalDescriptors.h
-            order/LocalDescriptors.cc
-            util/Index1D.h
-            util/HOOMDMath.h
-            util/HOOMDMatrix.cc
-            molfile/dcdplugin.cc
-            molfile/vmdplugin.h
-            molfile/endianswap.h
-            molfile/fastio.h
-            molfile/largefiles.h
-            molfile/molfile_plugins.h
-            molfile/molfile_plugin.h
-            interface/InterfaceMeasure.cc
-            interface/InterfaceMeasure.h
-            pairing/pairing2D.cc
-            pairing/pairing2D.h
-            pmft/PMFXYZ.cc
-            pmft/PMFXYZ.h
-            pmft/PMFXY2D.cc
-            pmft/PMFXY2D.h
-            pmft/PMFTXYT2D.cc
-            pmft/PMFTXYT2D.h
-            pmft/PMFTXYTP2D.cc
-            pmft/PMFTXYTP2D.h
-            pmft/PMFTXYTM2D.cc
-            pmft/PMFTXYTM2D.h
-            pmft/PMFTRPM.cc
-            pmft/PMFTRPM.h
-            bootstrap/Bootstrap.cc
-            bootstrap/Bootstrap.h
-            shapesplit/shapesplit.cc
-            shapesplit/shapesplit.h
-            interface/InterfaceMeasure.h
-            sphericalharmonicorderparameters/LocalQl.h
-            sphericalharmonicorderparameters/LocalQl.cc
-            sphericalharmonicorderparameters/LocalWl.h
-            sphericalharmonicorderparameters/LocalWl.cc
-            sphericalharmonicorderparameters/SolLiq.h
-            sphericalharmonicorderparameters/SolLiq.cc
-            sphericalharmonicorderparameters/wigner3j.cc
-            sphericalharmonicorderparameters/wigner3j.h
-            viz/colormap.h
-            viz/colormap.cc
-            viz/colorutil.h
-            viz/colorutil.cc
-            viz/triangles.h
-            viz/triangles.cc
-            viz/split.h
-            viz/split.cc
-            parallel/tbb_config.h
-            parallel/tbb_config.cc
             )
+set(SOURCES ${_freud_sources})
 set_source_files_properties(${SOURCES} PROPERTIES COMPILE_DEFINITIONS NO_IMPORT_ARRAY)
 
 # compile_ispc(ispc_generated_files viz/colorutil.ispc)
 
+if (ENABLE_CUDA)
+CUDA_COMPILE(_CUDA_GENERATED_FILES ${_freud_cu_sources} OPTIONS ${CUDA_ADDTIONAL_OPTIONS} SHARED)
+source_group(cuda_generated FILES ${_CUDA_GENERATED_FILES})
+endif (ENABLE_CUDA)
+
 # add_library(_freud MODULE ${ispc_generated_files} ${SOURCES} util/num_util.cc util/num_util.h module.cc)
-add_library(_freud MODULE ${SOURCES} util/num_util.cc util/num_util.h module.cc)
+add_library(_freud MODULE ${SOURCES} ${_CUDA_GENERATED_FILES} util/num_util.cc util/num_util.h module.cc)
 setup_pymodule(_freud)
 
 INSTALL(TARGETS _freud

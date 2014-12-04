@@ -11,6 +11,13 @@ endif()
 project (FREUD)
 
 add_subdirectory(CMake)
+# setup version tagging info
+include (CMake_version_options.cmake)
+
+message(STATUS "Configuring FREUD ${FREUD_VERSION_LONG}")
+
+# Handle user build options
+include (CMake_build_options.cmake)
 
 # find TBB lib and includes
 find_library(TBB_LIBRARY tbb
@@ -40,6 +47,10 @@ include_directories(${PYTHON_INCLUDE_DIR})
 # Find the boost libraries and set them up
 include (FREUDBoostSetup)
 include_directories(SYSTEM ${Boost_INCLUDE_DIR})
+
+# Find CUDA and set it up
+include (FREUDCUDASetup)
+include_directories(SYSTEM ${CUDA_INCLUDE_DIRS})
 
 # setup numpy
 include (FREUDNumpySetup)
