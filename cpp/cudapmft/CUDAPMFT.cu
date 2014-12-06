@@ -93,7 +93,7 @@ int main()
     }
 
     // free device memory
-    // cudaFree(d_a);
+    cudaFree(d_a);
 
     // free host memory
     free(h_a);
