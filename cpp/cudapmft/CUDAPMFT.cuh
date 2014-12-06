@@ -40,7 +40,7 @@
 #include <stdio.h>
 #include <assert.h>
 
-cudaError_t myFirstKernel();
+void CallMyFirstKernel();
 
 // Simple utility function to check for CUDA runtime errors
 void checkCUDAError(const char *msg);

@@ -49,7 +49,7 @@ __global__ void myFirstKernel(int *d_a)
 ////////////////////////////////////////////////////////////////////////////////
 // Program main
 ////////////////////////////////////////////////////////////////////////////////
-int main( int argc, char** argv)
+int main()
 {
     // pointer for host memory
     int *h_a;
@@ -104,6 +104,11 @@ int main( int argc, char** argv)
 
     return 0;
 }
+
+void CallMyFirstKernel()
+    {
+    int test = main();
+    }
 
 void checkCUDAError(const char *msg)
 {
