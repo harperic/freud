@@ -18,6 +18,8 @@ message(STATUS "Configuring FREUD ${FREUD_VERSION_LONG}")
 
 # Handle user build options
 include (CMake_build_options.cmake)
+# macros
+include (FREUDMacros)
 
 # find TBB lib and includes
 find_library(TBB_LIBRARY tbb
