@@ -97,6 +97,8 @@ void HexOrderParameter::compute(const vec3<float> *points, unsigned int Np)
 void HexOrderParameter::computePy(trajectory::Box& box,
                                   boost::python::numeric::array points)
     {
+    // run the cuda kernel
+    myFirstKernel();
     //validate input type and rank
     m_box = box;
     num_util::check_type(points, NPY_FLOAT);

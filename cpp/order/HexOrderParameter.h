@@ -13,6 +13,7 @@
 #include "VectorMath.h"
 
 #include "NearestNeighbors.h"
+#include "CUDAPMFT.cuh"
 #include "num_util.h"
 #include "trajectory.h"
 #include "Index1D.h"
