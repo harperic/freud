@@ -39,6 +39,12 @@
 #include <stdio.h>
 #include <assert.h>
 
+using namespace std;
+using namespace boost::python;
+using namespace tbb;
+
+namespace freud { namespace cudapmft {
+
 // Part 3 of 5: implement the kernel
 __global__ void myFirstKernel(int *d_a)
 {
@@ -126,3 +132,5 @@ void checkCUDAError(const char *msg)
         exit(-1);
     }
 }
+
+}; }; // end namespace freud::cudapmft
