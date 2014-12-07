@@ -1,6 +1,9 @@
 macro(fix_cudart_rpath target)
 if (ENABLE_CUDA AND APPLE)
-get_target_property(_target_exe ${target} LOCATION)
+# get_target_property(_target_exe ${target} LOCATION)
+# MESSAGE( ${_target_exe} )
+set(_target_exe ${CMAKE_CURRENT_BINARY_DIR}/_freud.so)
+# MESSAGE( ${_target_exe} )
 add_custom_command(TARGET ${target} POST_BUILD
                           COMMAND install_name_tool ARGS -change @rpath/libcudart.dylib ${CUDA_CUDART_LIBRARY} ${_target_exe})
 add_custom_command(TARGET ${target} POST_BUILD

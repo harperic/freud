@@ -75,14 +75,14 @@ if (ENABLE_CUDA)
 endif (ENABLE_CUDA)
 
 # embed the CUDA libraries into the lib dir
-if (ENABLE_EMBED_CUDA)
+# if (ENABLE_EMBED_CUDA)
 
     # determine the directory of the found cuda libs
-    get_filename_component(_cuda_libdir ${CUDA_CUDART_LIBRARY} PATH)
-    FILE(GLOB _cuda_libs ${_cuda_libdir}/libcudart.* ${_cuda_libdir}/libcufft.*)
-    install(PROGRAMS ${_cuda_libs} DESTINATION ${LIB_INSTALL_DIR})
+    # get_filename_component(_cuda_libdir ${CUDA_CUDART_LIBRARY} PATH)
+    # FILE(GLOB _cuda_libs ${_cuda_libdir}/libcudart.* ${_cuda_libdir}/libcufft.*)
+    # install(PROGRAMS ${_cuda_libs} DESTINATION ${LIB_INSTALL_DIR})
 
-endif (ENABLE_EMBED_CUDA)
+# endif (ENABLE_EMBED_CUDA)
 
 # automatically handle setting ccbin to /usr when needed
 if (CMAKE_COMPILER_IS_GNUCXX AND CMAKE_VERSION VERSION_GREATER 2.8.7)
