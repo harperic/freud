@@ -33,24 +33,12 @@
  * the above Disclaimer and U.S. Government End Users Notice.
  */
 
-#include <tbb/tbb.h>
 #include <ostream>
 
 // work around nasty issue where python #defines isalpha, toupper, etc....
 #undef __APPLE__
 #include <Python.h>
 #define __APPLE__
-
-#include <boost/python.hpp>
-#include <boost/shared_array.hpp>
-
-#include "HOOMDMath.h"
-#include "VectorMath.h"
-
-#include "NearestNeighbors.h"
-#include "num_util.h"
-#include "trajectory.h"
-#include "Index1D.h"
 
 // includes, system
 #ifndef __CUDAPMFT_CUH__

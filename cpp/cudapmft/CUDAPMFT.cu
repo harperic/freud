@@ -40,8 +40,6 @@
 #include <assert.h>
 
 using namespace std;
-using namespace boost::python;
-using namespace tbb;
 
 namespace freud { namespace cudapmft {
 
@@ -57,11 +55,9 @@ __global__ void myFirstKernel(int *d_a)
 ////////////////////////////////////////////////////////////////////////////////
 int main()
 {
-    printf("initializing host mem\n");
     // pointer for host memory
     int *h_a;
 
-    printf("initializing dev mem\n");
     // pointer for device memory
     int *d_a;
 
@@ -71,15 +67,12 @@ int main()
 
     // Part 1 of 5: allocate host and device memory
     size_t memSize = numBlocks * numThreadsPerBlock * sizeof(int);
-    printf("malloc host mem\n");
     h_a = (int *) malloc(memSize);
-    printf("malloc dev mem\n");
     cudaMalloc( (void **) &d_a, memSize );
 
     // Part 2 of 5: launch kernel
     dim3 dimGrid(numBlocks);
     dim3 dimBlock(numThreadsPerBlock);
-    printf("launch kernel\n");
     myFirstKernel<<< dimGrid, dimBlock >>>( d_a );
 
     // block until the device has completed
@@ -111,16 +104,13 @@ int main()
 
     // If the program makes it this far, then the results are correct and
     // there are no run-time errors.  Good work!
-    printf("Correct!\n");
 
     return 0;
 }
 
 void CallMyFirstKernel()
     {
-    printf("getting ready call kernel function\n");
     int test = main();
-    printf("returned\n");
     }
 
 void checkCUDAError(const char *msg)
