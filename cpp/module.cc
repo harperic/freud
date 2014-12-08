@@ -22,6 +22,7 @@
 #include "InterfaceMeasure.h"
 #include "LocalQl.h"
 #include "pairing2D.h"
+#include "CUDAPMFT2D.h"
 #include "PMFXYZ.h"
 #include "PMFXY2D.h"
 #include "PMFTXYT2D.h"
@@ -102,6 +103,7 @@ BOOST_PYTHON_MODULE(_freud)
     sphericalharmonicorderparameters::export_LocalWl();
     sphericalharmonicorderparameters::export_SolLiq();
     pairing::export_pairing();
+    cudapmft::export_CUDAPMFT2D();
     pmft::export_PMFXYZ();
     pmft::export_PMFXY2D();
     pmft::export_PMFTXYT2D();

@@ -35,7 +35,7 @@
 
 
 // includes, system
-#include "CUDAPMFT.cuh"
+#include "CUDAPMFT2D.cuh"
 #include <stdio.h>
 #include <assert.h>
 
@@ -44,73 +44,90 @@ using namespace std;
 namespace freud { namespace cudapmft {
 
 // Part 3 of 5: implement the kernel
-__global__ void myFirstKernel(int *d_a)
+__global__ void myFirstKernel(int *pmftArray, int arrSize)
 {
     int idx = blockIdx.x*blockDim.x + threadIdx.x;
-    d_a[idx] = 1000*blockIdx.x + threadIdx.x;
+    // pmftArray[idx] = (int)(1000*blockIdx.x + threadIdx.x);
+    pmftArray[0] = 1;
+    // printf("idx = %d\n", idx);
 }
 
-////////////////////////////////////////////////////////////////////////////////
-// Program main
-////////////////////////////////////////////////////////////////////////////////
-int main()
-{
+void CallMyFirstKernel(int *pmftArray, int arrSize)
+    {
     // pointer for host memory
-    int *h_a;
+    // int *h_a;
 
     // pointer for device memory
-    int *d_a;
+    // int *d_a;
 
     // define grid and block size
+    // int numThreadsPerBlock = arrSize / numBlocks;
+    // int numThreadsPerBlock = 32;
+    // int numBlocks = arrSize / numThreadsPerBlock;
     int numBlocks = 8;
     int numThreadsPerBlock = 8;
 
     // Part 1 of 5: allocate host and device memory
-    size_t memSize = numBlocks * numThreadsPerBlock * sizeof(int);
-    h_a = (int *) malloc(memSize);
-    cudaMalloc( (void **) &d_a, memSize );
+    // size_t memSize = numBlocks * numThreadsPerBlock * sizeof(int);
+    // h_a = (int *) malloc(memSize);
+    // cudaMalloc( (void **) &d_a, memSize );
+    // cudaMallocManaged( &d_a, memSize );
 
     // Part 2 of 5: launch kernel
     dim3 dimGrid(numBlocks);
     dim3 dimBlock(numThreadsPerBlock);
-    myFirstKernel<<< dimGrid, dimBlock >>>( d_a );
+    // myFirstKernel<<< dimGrid, dimBlock >>>( d_a, arrSize );
+    // printf("arrSize = %d \n", arrSize);
+    // myFirstKernel<<< dimGrid, dimBlock >>>( pmftArray, arrSize );
+    // checkCUDAError("before kernel");
+    // block until the device has completed
+    cudaDeviceSynchronize();
+    checkCUDAError("prior to kernel execution");
+    myFirstKernel<<< 1, 1 >>>( pmftArray, arrSize );
+    // checkCUDAError("after kernel");
 
     // block until the device has completed
-    cudaThreadSynchronize();
+    cudaDeviceSynchronize();
+    // cudaThreadSynchronize();
 
     // check if kernel execution generated an error
     checkCUDAError("kernel execution");
 
     // Part 4 of 5: device to host copy
-    cudaMemcpy( h_a, d_a, memSize, cudaMemcpyDeviceToHost );
+    // cudaMemcpy( h_a, d_a, memSize, cudaMemcpyDeviceToHost );
 
     // Check for any CUDA errors
-    checkCUDAError("cudaMemcpy");
+    // checkCUDAError("cudaMemcpy");
 
     // Part 5 of 5: verify the data returned to the host is correct
-    for (int i = 0; i < numBlocks; i++)
-    {
-        for (int j = 0; j < numThreadsPerBlock; j++)
-        {
-            assert(h_a[i * numThreadsPerBlock + j] == 1000 * i + j);
-        }
-    }
+    // for (int i = 0; i < numBlocks; i++)
+    // {
+    //     for (int j = 0; j < numThreadsPerBlock; j++)
+    //     {
+    //         assert(pmftArray[i * numThreadsPerBlock + j] == 1000 * i + j);
+    //     }
+    // }
 
     // free device memory
-    cudaFree(d_a);
+    // cudaFree(d_a);
 
     // free host memory
-    free(h_a);
+    // free(h_a);
+    }
 
-    // If the program makes it this far, then the results are correct and
-    // there are no run-time errors.  Good work!
-
-    return 0;
-}
-
-void CallMyFirstKernel()
+void createPMFTArray(int **pmftArray, int &arrSize, size_t &memSize, unsigned int nbins_x, unsigned int nbins_y)
     {
-    int test = main();
+    arrSize = (int) (nbins_x * nbins_y);
+    memSize = sizeof(int) * arrSize;
+    // *pmftArray = (int *) malloc(memSize);
+    cudaMallocManaged(pmftArray, memSize);
+    cudaDeviceSynchronize();
+    }
+
+void freePMFTArray(int **pmftArray)
+    {
+    // free(*pmftArray);
+    cudaFree(pmftArray);
     }
 
 void checkCUDAError(const char *msg)

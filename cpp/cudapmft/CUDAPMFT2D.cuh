@@ -48,7 +48,11 @@
 
 namespace freud { namespace cudapmft {
 
-void CallMyFirstKernel();
+void CallMyFirstKernel(int *pmftArray, int arrSize);
+
+void createPMFTArray(int **pmftArray, int &arrSize, size_t &memSize, unsigned int nbins_x, unsigned int nbins_y);
+
+void freePMFTArray(int **pmftArray);
 
 // Simple utility function to check for CUDA runtime errors
 void checkCUDAError(const char *msg);

@@ -11,14 +11,14 @@
 #include "HOOMDMath.h"
 #include "VectorMath.h"
 
-#include "CUDAPMFT.cuh"
+#include "CUDAPMFT2D.cuh"
 #include "LinkCell.h"
 #include "num_util.h"
 #include "trajectory.h"
 #include "Index1D.h"
 
-#ifndef _CUDAPMFTXY2D_H__
-#define _CUDAPMFTXY2D_H__
+#ifndef _CUDAPMFT2D_H__
+#define _CUDAPMFT2D_H__
 
 /*! \internal
     \file CUDAPMFT2D.h
@@ -81,9 +81,11 @@ class CUDAPMFT2D
                        boost::python::numeric::array orientations);
 
         //! Get a reference to the PCF array
-        boost::shared_array<unsigned int> getPCF()
+        // boost::shared_array<unsigned int> getPCF()
+        boost::shared_array<float> getPCF()
             {
-            return m_pcf_array;
+            // return m_pcf_array;
+            return m_x_array;
             }
 
         //! Get a reference to the x array
@@ -101,11 +103,13 @@ class CUDAPMFT2D
         //! Python wrapper for getPCF() (returns a copy)
         boost::python::numeric::array getPCFPy()
             {
-            unsigned int *arr = m_pcf_array.get();
-            std::vector<intp> dims(2);
-            dims[0] = m_nbins_y;
-            dims[1] = m_nbins_x;
-            return num_util::makeNum(arr, dims);
+            // unsigned int *arr = m_pcf_array.get();
+            // std::vector<intp> dims(2);
+            // dims[0] = m_nbins_y;
+            // dims[1] = m_nbins_x;
+            // return num_util::makeNum(arr, dims);
+            float *arr = m_x_array.get();
+            return num_util::makeNum(arr, m_nbins_x);
             }
 
         //! Python wrapper for getX() (returns a copy)
@@ -128,14 +132,17 @@ class CUDAPMFT2D
         float m_max_y;                     //!< Maximum y at which to compute pcf
         float m_dx;                       //!< Step size for x in the computation
         float m_dy;                       //!< Step size for y in the computation
-        locality::LinkCell* m_lc;          //!< LinkCell to bin particles for the computation
+        // locality::LinkCell* m_lc;          //!< LinkCell to bin particles for the computation
         unsigned int m_nbins_x;             //!< Number of x bins to compute pcf over
         unsigned int m_nbins_y;             //!< Number of y bins to compute pcf over
 
-        boost::shared_array<unsigned int> m_pcf_array;         //!< array of pcf computed
+        // boost::shared_array<unsigned int> m_pcf_array;         //!< array of pcf computed
+        int *m_pcf_array;         //!< array of pcf computed
         boost::shared_array<float> m_x_array;           //!< array of x values that the pcf is computed at
         boost::shared_array<float> m_y_array;           //!< array of y values that the pcf is computed at
-        tbb::enumerable_thread_specific<unsigned int *> m_local_pcf_array;
+        // tbb::enumerable_thread_specific<unsigned int *> m_local_pcf_array;
+        int m_arrSize;
+        size_t m_memSize;
     };
 
 /*! \internal
@@ -145,4 +152,4 @@ void export_CUDAPMFT2D();
 
 }; }; // end namespace freud::cudapmft
 
-#endif // _CUDAPMFTXY2D_H__
+#endif // _CUDAPMFT2D_H__

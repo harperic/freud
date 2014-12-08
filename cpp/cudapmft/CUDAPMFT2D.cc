@@ -1,4 +1,4 @@
-#include "CUDAPMFTXY2D.h"
+#include "CUDAPMFT2D.h"
 #include "ScopedGILRelease.h"
 
 #include <stdexcept>
@@ -16,13 +16,13 @@ using namespace std;
 using namespace boost::python;
 
 /*! \internal
-    \file CUDAPMF2D.cc
+    \file CUDAPMFT2D.cc
     \brief Routines for computing 2D anisotropic potential of mean force
 */
 
 namespace freud { namespace cudapmft {
 
-CUDAPMF2D::CUDAPMF2D(float max_x, float max_y, float dx, float dy)
+CUDAPMFT2D::CUDAPMFT2D(float max_x, float max_y, float dx, float dy)
     // : m_box(trajectory::Box()), m_max_x(max_x), m_max_y(max_y), m_dx(dx), m_dy(dy)
     : m_max_x(max_x), m_max_y(max_y), m_dx(dx), m_dy(dy)
     {
@@ -63,14 +63,18 @@ CUDAPMF2D::CUDAPMF2D(float max_x, float max_y, float dx, float dy)
         }
 
     // create and populate the pcf_array
-    m_pcf_array = boost::shared_array<unsigned int>(new unsigned int[m_nbins_x * m_nbins_y]);
-    memset((void*)m_pcf_array.get(), 0, sizeof(unsigned int)*m_nbins_x*m_nbins_y);
+    // m_pcf_array = boost::shared_array<unsigned int>(new unsigned int[m_nbins_x * m_nbins_y]);
+    createPMFTArray(&m_pcf_array, m_arrSize, m_memSize, m_nbins_x, m_nbins_y);
+    printf("m_pcf_array[0] = %d\n", m_pcf_array[0]);
+    memset((void*)m_pcf_array, 0, sizeof(int)*m_nbins_x*m_nbins_y);
+    printf("m_pcf_array[0] = %d\n", m_pcf_array[0]);
 
     // m_lc = new locality::LinkCell(m_box, sqrtf(m_max_x*m_max_x + m_max_y*m_max_y));
     }
 
-CUDAPMF2D::~CUDAPMF2D()
+CUDAPMFT2D::~CUDAPMFT2D()
     {
+    freePMFTArray(&m_pcf_array);
     // for (tbb::enumerable_thread_specific<unsigned int *>::iterator i = m_local_pcf_array.begin(); i != m_local_pcf_array.end(); ++i)
     //     {
     //     delete[] (*i);
@@ -114,7 +118,7 @@ CUDAPMF2D::~CUDAPMF2D()
 /*! \brief Helper class to compute PMF in parallel with the cell list
 */
 
-// class ComputeCUDAPMF2D
+// class ComputeCUDAPMFT2D
 //     {
 //     private:
 //         tbb::enumerable_thread_specific<unsigned int *>& m_pcf_array;
@@ -133,7 +137,7 @@ CUDAPMF2D::~CUDAPMF2D()
 //         float *m_orientations;
 //         const unsigned int m_Np;
 //     public:
-//         ComputeCUDAPMF2D(tbb::enumerable_thread_specific<unsigned int *>& pcf_array,
+//         ComputeCUDAPMFT2D(tbb::enumerable_thread_specific<unsigned int *>& pcf_array,
 //                        unsigned int nbins_x,
 //                        unsigned int nbins_y,
 //                        const trajectory::Box &box,
@@ -238,16 +242,16 @@ CUDAPMF2D::~CUDAPMF2D()
 /*! \brief Function to reset the pcf array if needed e.g. calculating between new particle types
 */
 
-void CUDAPMF2D::resetPCF()
+void CUDAPMFT2D::resetPCF()
     {
-    memset((void*)m_pcf_array.get(), 0, sizeof(unsigned int)*m_nbins_x*m_nbins_y);
+    memset((void*)m_pcf_array, 0, sizeof(unsigned int)*m_nbins_x*m_nbins_y);
     }
 
 //! \internal
 /*! \brief Helper functionto direct the calculation to the correct helper class
 */
 
-void CUDAPMF2D::compute(vec3<float> *ref_points,
+void CUDAPMFT2D::compute(vec3<float> *ref_points,
                       float *ref_orientations,
                       unsigned int Nref,
                       vec3<float> *points,
@@ -260,7 +264,7 @@ void CUDAPMF2D::compute(vec3<float> *ref_points,
     //     }
     // m_lc->computeCellList(m_box, points, Np);
     // parallel_for(blocked_range<size_t>(0,Nref),
-    //              ComputeCUDAPMF2D(m_local_pcf_array,
+    //              ComputeCUDAPMFT2D(m_local_pcf_array,
     //                             m_nbins_x,
     //                             m_nbins_y,
     //                             m_box,
@@ -282,14 +286,14 @@ void CUDAPMF2D::compute(vec3<float> *ref_points,
     //                             m_local_pcf_array));
 
     // run the cuda kernel
-    CallMyFirstKernel();
+    CallMyFirstKernel(m_pcf_array, m_arrSize);
     }
 
 //! \internal
 /*! \brief Exposed function to python to calculate the PMF
 */
 
-void CUDAPMF2D::computePy(trajectory::Box& box,
+void CUDAPMFT2D::computePy(trajectory::Box& box,
                         boost::python::numeric::array ref_points,
                         boost::python::numeric::array ref_orientations,
                         boost::python::numeric::array points,
@@ -335,15 +339,15 @@ void CUDAPMF2D::computePy(trajectory::Box& box,
         }
     }
 
-void export_CUDAPMF2D()
+void export_CUDAPMFT2D()
     {
-    class_<CUDAPMF2D>("CUDAPMF2D", init<float, float, float, float>())
-        // .def("getBox", &CUDAPMF2D::getBox, return_internal_reference<>())
-        .def("compute", &CUDAPMF2D::computePy)
-        .def("getPCF", &CUDAPMF2D::getPCFPy)
-        .def("getX", &CUDAPMF2D::getXPy)
-        .def("getY", &CUDAPMF2D::getYPy)
-        .def("resetPCF", &CUDAPMF2D::resetPCFPy)
+    class_<CUDAPMFT2D>("CUDAPMFT2D", init<float, float, float, float>())
+        // .def("getBox", &CUDAPMFT2D::getBox, return_internal_reference<>())
+        .def("compute", &CUDAPMFT2D::computePy)
+        .def("getPCF", &CUDAPMFT2D::getPCFPy)
+        .def("getX", &CUDAPMFT2D::getXPy)
+        .def("getY", &CUDAPMFT2D::getYPy)
+        .def("resetPCF", &CUDAPMFT2D::resetPCFPy)
         ;
     }
 
