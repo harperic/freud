@@ -41,8 +41,8 @@
 #define __APPLE__
 
 // includes, system
-#ifndef __CUDAPMFT_CUH__
-#define __CUDAPMFT_CUH__
+#ifndef __CUDAPMFT2D_CUH__
+#define __CUDAPMFT2D_CUH__
 #include <stdio.h>
 #include <assert.h>
 
@@ -55,4 +55,4 @@ void checkCUDAError(const char *msg);
 
 }; }; // end namespace freud::cudapmft
 
-#endif
+#endif // _CUDAPMFTXY2D_CUH__

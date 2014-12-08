@@ -77,8 +77,6 @@ class ComputeHexOrderParameter
 
 void HexOrderParameter::compute(const vec3<float> *points, unsigned int Np)
     {
-    // run the cuda kernel
-    freud::cudapmft::CallMyFirstKernel();
     // compute the cell list
     m_nn->compute(m_box,points,Np,points,Np);
     m_nn->setRMax(m_rmax);
