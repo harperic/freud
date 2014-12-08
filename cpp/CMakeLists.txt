@@ -107,7 +107,9 @@ endif (ENABLE_CUDA)
 
 # add_library(_freud MODULE ${ispc_generated_files} ${SOURCES} util/num_util.cc util/num_util.h module.cc)
 add_library(_freud MODULE ${SOURCES} ${_CUDA_GENERATED_FILES} util/num_util.cc util/num_util.h module.cc)
+if (ENABLE_CUDA)
 target_link_libraries(_freud ${CUDA_LIBRARIES} ${CUDA_cufft_LIBRARY})
+endif (ENABLE_CUDA)
 # .dylib is not regognized as a python module by python on Mac OS X
 if(APPLE)
     set_target_properties(_freud PROPERTIES SUFFIX ".so")

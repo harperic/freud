@@ -52,7 +52,9 @@ include_directories(SYSTEM ${Boost_INCLUDE_DIR})
 
 # Find CUDA and set it up
 include (FREUDCUDASetup)
+if (ENABLE_CUDA)
 include_directories(SYSTEM ${CUDA_INCLUDE_DIRS})
+endif (ENABLE_CUDA)
 
 # setup numpy
 include (FREUDNumpySetup)
