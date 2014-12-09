@@ -81,11 +81,10 @@ class CUDAPMFT2D
                        boost::python::numeric::array orientations);
 
         //! Get a reference to the PCF array
-        // boost::shared_array<unsigned int> getPCF()
-        boost::shared_array<float> getPCF()
+        boost::shared_array<unsigned int> getPCF()
             {
-            // return m_pcf_array;
-            return m_x_array;
+            memcpy((void*)m_pcf_array.get(), d_pcf_array, m_memSize);
+            return m_pcf_array;
             }
 
         //! Get a reference to the x array
@@ -103,13 +102,12 @@ class CUDAPMFT2D
         //! Python wrapper for getPCF() (returns a copy)
         boost::python::numeric::array getPCFPy()
             {
-            // unsigned int *arr = m_pcf_array.get();
-            // std::vector<intp> dims(2);
-            // dims[0] = m_nbins_y;
-            // dims[1] = m_nbins_x;
-            // return num_util::makeNum(arr, dims);
-            float *arr = m_x_array.get();
-            return num_util::makeNum(arr, m_nbins_x);
+            memcpy((void*)m_pcf_array.get(), d_pcf_array, m_memSize);
+            unsigned int *arr = m_pcf_array.get();
+            std::vector<intp> dims(2);
+            dims[0] = m_nbins_y;
+            dims[1] = m_nbins_x;
+            return num_util::makeNum(arr, dims);
             }
 
         //! Python wrapper for getX() (returns a copy)
@@ -137,11 +135,12 @@ class CUDAPMFT2D
         unsigned int m_nbins_y;             //!< Number of y bins to compute pcf over
 
         // boost::shared_array<unsigned int> m_pcf_array;         //!< array of pcf computed
-        int *m_pcf_array;         //!< array of pcf computed
+        unsigned int *d_pcf_array;         //!< array of pcf computed
+        boost::shared_array<unsigned int> m_pcf_array;         //!< array of pcf computed
         boost::shared_array<float> m_x_array;           //!< array of x values that the pcf is computed at
         boost::shared_array<float> m_y_array;           //!< array of y values that the pcf is computed at
         // tbb::enumerable_thread_specific<unsigned int *> m_local_pcf_array;
-        int m_arrSize;
+        unsigned int m_arrSize;
         size_t m_memSize;
     };
 

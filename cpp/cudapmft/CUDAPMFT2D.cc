@@ -64,10 +64,10 @@ CUDAPMFT2D::CUDAPMFT2D(float max_x, float max_y, float dx, float dy)
 
     // create and populate the pcf_array
     // m_pcf_array = boost::shared_array<unsigned int>(new unsigned int[m_nbins_x * m_nbins_y]);
-    createPMFTArray(&m_pcf_array, m_arrSize, m_memSize, m_nbins_x, m_nbins_y);
-    printf("m_pcf_array[0] = %d\n", m_pcf_array[0]);
-    memset((void*)m_pcf_array, 0, sizeof(int)*m_nbins_x*m_nbins_y);
-    printf("m_pcf_array[0] = %d\n", m_pcf_array[0]);
+    createPMFTArray(&d_pcf_array, m_arrSize, m_memSize, m_nbins_x, m_nbins_y);
+    memset((void*)d_pcf_array, 0, sizeof(unsigned int)*m_nbins_x*m_nbins_y);
+    m_pcf_array = boost::shared_array<unsigned int>(new unsigned int[m_nbins_x * m_nbins_y]);
+    memset((void*)d_pcf_array, 0, sizeof(unsigned int)*m_nbins_x*m_nbins_y);
 
     // m_lc = new locality::LinkCell(m_box, sqrtf(m_max_x*m_max_x + m_max_y*m_max_y));
     }
@@ -244,6 +244,7 @@ CUDAPMFT2D::~CUDAPMFT2D()
 
 void CUDAPMFT2D::resetPCF()
     {
+    memset((void*)d_pcf_array, 0, sizeof(unsigned int)*m_nbins_x*m_nbins_y);
     memset((void*)m_pcf_array, 0, sizeof(unsigned int)*m_nbins_x*m_nbins_y);
     }
 
@@ -286,7 +287,7 @@ void CUDAPMFT2D::compute(vec3<float> *ref_points,
     //                             m_local_pcf_array));
 
     // run the cuda kernel
-    CallMyFirstKernel(m_pcf_array, m_arrSize);
+    CallMyFirstKernel(d_pcf_array, m_arrSize);
     }
 
 //! \internal
