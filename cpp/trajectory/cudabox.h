@@ -377,10 +377,10 @@ class CudaBox
                 {
                 return make_float3(m_L.z*m_xz, m_L.z*m_yz, m_L.z);
                 }
-            else
-                {
-                throw std::out_of_range("box lattice vector index requested does not exist");
-                }
+            // else
+            //     {
+            //     throw std::out_of_range("box lattice vector index requested does not exist");
+            //     }
             return make_float3(0.0,0.0,0.0);
             }
 

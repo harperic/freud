@@ -43,12 +43,14 @@
 // includes, system
 #ifndef __CUDAPMFT2D_CUH__
 #define __CUDAPMFT2D_CUH__
+#include "HOOMDMath.h"
+#include "cudabox.h"
 #include <stdio.h>
 #include <assert.h>
 
 namespace freud { namespace cudapmft {
 
-void CallMyFirstKernel(unsigned int *pmftArray, unsigned int arrSize);
+void CallMyFirstKernel(unsigned int *pmftArray, unsigned int arrSize, trajectory::CudaBox &box);
 
 void createPMFTArray(unsigned int **pmftArray, unsigned int &arrSize, size_t &memSize, unsigned int nbins_x, unsigned int nbins_y);
 

@@ -10,6 +10,7 @@
 #include <omp.h>
 #endif
 
+#include "HOOMDMath.h"
 #include "VectorMath.h"
 
 using namespace std;
@@ -107,7 +108,7 @@ void CUDAPMFT2D::compute(vec3<float> *ref_points,
 
     // run the cuda kernel
     // don't need to explicitly accumulate since d is already populated
-    CallMyFirstKernel(d_pcf_array, m_arrSize);
+    CallMyFirstKernel(d_pcf_array, m_arrSize, d_box);
     }
 
 //! \internal

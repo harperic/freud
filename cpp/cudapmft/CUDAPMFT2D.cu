@@ -6,14 +6,15 @@ using namespace std;
 namespace freud { namespace cudapmft {
 
 // Part 3 of 5: implement the kernel
-__global__ void myFirstKernel(unsigned int *pmftArray, unsigned int arrSize)
+__global__ void myFirstKernel(unsigned int *pmftArray, unsigned int arrSize, trajectory::CudaBox &box)
 {
     int idx = blockIdx.x*blockDim.x + threadIdx.x;
+    unsigned int test = (unsigned int)box.getLx();
     if (idx < arrSize)
-        pmftArray[idx] += (unsigned int)idx;
+        pmftArray[idx] += (unsigned int)idx + test;
 }
 
-void CallMyFirstKernel(unsigned int *pmftArray, unsigned int arrSize)
+void CallMyFirstKernel(unsigned int *pmftArray, unsigned int arrSize, trajectory::CudaBox &box)
     {
 
     // define grid and block size
@@ -23,7 +24,7 @@ void CallMyFirstKernel(unsigned int *pmftArray, unsigned int arrSize)
     dim3 dimGrid(numBlocks);
     dim3 dimBlock(numThreadsPerBlock);
     checkCUDAError("prior to kernel execution");
-    myFirstKernel<<< dimGrid, dimBlock >>>( pmftArray, arrSize );
+    myFirstKernel<<< dimGrid, dimBlock >>>( pmftArray, arrSize, box );
 
     // block until the device has completed
     cudaDeviceSynchronize();
