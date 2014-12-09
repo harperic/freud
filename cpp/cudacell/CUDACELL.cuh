@@ -20,6 +20,8 @@ void CallCompute(unsigned int *p_array,
 
 void createIDXArray(unsigned int **IDXArray, size_t memSize);
 
+void createPointArray(float3 **IDXArray, size_t memSize);
+
 void freeIDXArray(unsigned int **IDXArray);
 
 // Simple utility function to check for CUDA runtime errors

@@ -24,6 +24,7 @@ HOSTDEVICE CudaCell::CudaCell()
     m_celldim.z = 1;
     createIDXArray(&d_cidx_array, sizeof(unsigned int));
     createIDXArray(&d_pidx_array, sizeof(unsigned int));
+    createPointArray(&d_point_array, sizeof(float3));
     }
 
 HOSTDEVICE CudaCell::CudaCell(const trajectory::CudaBox& box, float cell_width)
@@ -53,14 +54,17 @@ HOSTDEVICE CudaCell::CudaCell(const trajectory::CudaBox& box, float cell_width)
         }
     createIDXArray(&d_cidx_array, sizeof(unsigned int));
     createIDXArray(&d_pidx_array, sizeof(unsigned int));
+    createPointArray(&d_point_array, sizeof(float3));
     m_cell_index = Index3D(m_celldim.x, m_celldim.y, m_celldim.z);
     computeCellNeighbors();
     }
 
 HOSTDEVICE CudaCell::~CudaCell()
     {
-    freeIDXArray(&d_cidx_array);
-    freeIDXArray(&d_pidx_array);
+    // printf("destruction of CudaCell\n");
+    // why are these invalid device pointers?
+    // freeIDXArray(&d_cidx_array);
+    // freeIDXArray(&d_pidx_array);
     }
 
 HOSTDEVICE void CudaCell::setCellWidth(float cell_width)
@@ -188,15 +192,20 @@ HOSTDEVICE void CudaCell::computeCellList(trajectory::CudaBox& box,
     if ((m_np != np) || (m_nc != nc))
         {
         // this will be a call to Cuda
-        freeIDXArray(&d_cidx_array);
-        freeIDXArray(&d_pidx_array);
+        // freeIDXArray(&d_cidx_array);
+        // freeIDXArray(&d_pidx_array);
         createIDXArray(&d_cidx_array, sizeof(unsigned int)*np);
         createIDXArray(&d_pidx_array, sizeof(unsigned int)*np);
+        createPointArray(&d_point_array, sizeof(float3)*np);
         }
+    memcpy((void*)d_point_array, (void*)points, sizeof(float3)*np);
     m_np = np;
     m_nc = nc;
-
-    CallCompute(d_pidx_array, d_cidx_array, m_np, m_nc, d_box, m_cell_index, points);
+    // points needs put onto the device
+    CallCompute(d_pidx_array, d_cidx_array, m_np, m_nc, d_box, m_cell_index, d_point_array);
+    // These need to be freed (I think) although it keeps saying it's invalid...
+    // freeIDXArray(&d_cidx_array);
+    // freeIDXArray(&d_pidx_array);
     }
 
 HOSTDEVICE void CudaCell::computeCellNeighbors()

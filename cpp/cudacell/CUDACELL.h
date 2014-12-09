@@ -118,7 +118,7 @@ class CudaCell
 
         unsigned int *d_cidx_array;    //!< The list of cell indices
         unsigned int *d_pidx_array;    //!< The list of particle indices
-        float3 *d_point_list;    //!< The list of particle indices
+        float3 *d_point_array;    //!< The list of particle indices
 
         // This needs to be reimagined
         // std::vector< std::vector<unsigned int> > m_cell_neighbors;    //!< List of cell neighborts to each cell
