@@ -1,5 +1,3 @@
-#include "num_util.h"
-
 #include "HOOMDMath.h"
 
 

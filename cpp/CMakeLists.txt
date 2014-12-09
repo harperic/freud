@@ -73,7 +73,7 @@ set(_dir_list util trajectory bootstrap cluster interface kspace
     pmft shapesplit sphericalharmonicorderparameters viz voronoi)
 
 if (ENABLE_CUDA)
-list(APPEND _dir_list cudapmft)
+list(APPEND _dir_list cudacell cudapmft)
 endif (ENABLE_CUDA)
 
 foreach (dir ${_dir_list})

@@ -6,7 +6,7 @@ using namespace std;
 namespace freud { namespace cudapmft {
 
 // Part 3 of 5: implement the kernel
-__global__ void myFirstKernel(unsigned int *pmftArray, unsigned int arrSize, trajectory::CudaBox &box)
+__global__ void myFirstKernel(unsigned int *pmftArray, unsigned int arrSize, trajectory::CudaBox box)
 {
     int idx = blockIdx.x*blockDim.x + threadIdx.x;
     unsigned int test = (unsigned int)box.getLx();

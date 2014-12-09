@@ -35,10 +35,10 @@
 
 #include <ostream>
 
-// work around nasty issue where python #defines isalpha, toupper, etc....
-#undef __APPLE__
-#include <Python.h>
-#define __APPLE__
+// // work around nasty issue where python #defines isalpha, toupper, etc....
+// #undef __APPLE__
+// #include <Python.h>
+// #define __APPLE__
 
 // includes, system
 #ifndef __CUDAPMFT2D_CUH__

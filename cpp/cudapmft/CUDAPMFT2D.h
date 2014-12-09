@@ -67,10 +67,10 @@ class CUDAPMFT2D
         /*! Compute the PCF for the passed in set of points. The function will be added to previous values
             of the pcf
         */
-        void compute(vec3<float> *ref_points,
+        void compute(float3 *ref_points,
                      float *ref_orientations,
                      unsigned int Nref,
-                     vec3<float> *points,
+                     float3 *points,
                      float *orientations,
                      unsigned int Np);
 
@@ -132,7 +132,7 @@ class CUDAPMFT2D
         float m_max_y;                     //!< Maximum y at which to compute pcf
         float m_dx;                       //!< Step size for x in the computation
         float m_dy;                       //!< Step size for y in the computation
-        // locality::LinkCell* m_lc;          //!< LinkCell to bin particles for the computation
+        cudacell::CudaCell* m_cc;          //!< CudaCell to bin particles for the computation
         unsigned int m_nbins_x;             //!< Number of x bins to compute pcf over
         unsigned int m_nbins_y;             //!< Number of y bins to compute pcf over
 

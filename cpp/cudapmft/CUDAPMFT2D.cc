@@ -72,7 +72,7 @@ CUDAPMFT2D::CUDAPMFT2D(float max_x, float max_y, float dx, float dy)
     m_pcf_array = boost::shared_array<unsigned int>(new unsigned int[m_nbins_x * m_nbins_y]);
     memset((void*)m_pcf_array.get(), 0, sizeof(unsigned int)*m_nbins_x*m_nbins_y);
 
-    // m_lc = new locality::LinkCell(m_box, sqrtf(m_max_x*m_max_x + m_max_y*m_max_y));
+    m_cc = new cudacell::CudaCell(d_box, sqrtf(m_max_x*m_max_x + m_max_y*m_max_y));
     }
 
 CUDAPMFT2D::~CUDAPMFT2D()
@@ -80,7 +80,7 @@ CUDAPMFT2D::~CUDAPMFT2D()
     freeCudaArray(&d_x_array);
     freeCudaArray(&d_y_array);
     freePMFTArray(&d_pcf_array);
-    // delete m_lc;
+    delete m_cc;
     }
 
 //! \internal
@@ -97,14 +97,14 @@ void CUDAPMFT2D::resetPCF()
 /*! \brief Helper functionto direct the calculation to the correct helper class
 */
 
-void CUDAPMFT2D::compute(vec3<float> *ref_points,
+void CUDAPMFT2D::compute(float3 *ref_points,
                       float *ref_orientations,
                       unsigned int Nref,
-                      vec3<float> *points,
+                      float3 *points,
                       float *orientations,
                       unsigned int Np)
     {
-    // m_lc->computeCellList(m_box, points, Np);
+    m_cc->computeCellList(d_box, points, Np);
 
     // run the cuda kernel
     // don't need to explicitly accumulate since d is already populated
@@ -151,9 +151,9 @@ void CUDAPMFT2D::computePy(trajectory::Box& box,
     num_util::check_dim(orientations, 0, Np);
 
     // get the raw data pointers and compute the cell list
-    vec3<float>* ref_points_raw = (vec3<float>*) num_util::data(ref_points);
+    float3* ref_points_raw = (float3*) num_util::data(ref_points);
     float* ref_orientations_raw = (float*) num_util::data(ref_orientations);
-    vec3<float>* points_raw = (vec3<float>*) num_util::data(points);
+    float3* points_raw = (float3*) num_util::data(points);
     float* orientations_raw = (float*) num_util::data(orientations);
 
         // compute with the GIL released
