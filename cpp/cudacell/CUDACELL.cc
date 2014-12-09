@@ -18,7 +18,10 @@ namespace freud { namespace cudacell {
 HOSTDEVICE CudaCell::CudaCell()
     : d_box(trajectory::CudaBox()), m_np(0), m_cell_width(0)
     {
-    m_celldim = make_float3(0,0,0);
+    // m_celldim = make_unit3(0,0,0);
+    m_celldim.x = 1;
+    m_celldim.y = 1;
+    m_celldim.z = 1;
     createIDXArray(&d_cidx_array, sizeof(unsigned int));
     createIDXArray(&d_pidx_array, sizeof(unsigned int));
     }
@@ -27,7 +30,7 @@ HOSTDEVICE CudaCell::CudaCell(const trajectory::CudaBox& box, float cell_width)
     : d_box(box), m_cell_width(cell_width)
     {
     // check if the cell width is too wide for the box
-    m_celldim  = computeDimensions(d_box, m_cell_width);
+    m_celldim = computeDimensions(d_box, m_cell_width);
     // Check if box is too small!
     // will only check if the box is not null
     if (box != trajectory::CudaBox())
@@ -48,6 +51,8 @@ HOSTDEVICE CudaCell::CudaCell(const trajectory::CudaBox& box, float cell_width)
             m_celldim.z = 1;
             }
         }
+    createIDXArray(&d_cidx_array, sizeof(unsigned int));
+    createIDXArray(&d_pidx_array, sizeof(unsigned int));
     m_cell_index = Index3D(m_celldim.x, m_celldim.y, m_celldim.z);
     computeCellNeighbors();
     }
@@ -66,7 +71,7 @@ HOSTDEVICE void CudaCell::setCellWidth(float cell_width)
         uint3 celldim  = computeDimensions(d_box, cell_width);
         //Check if box is too small!
         bool too_wide =  cell_width > L.x/2.0 || cell_width > L.y/2.0;
-        if (!m_box.is2D())
+        if (!d_box.is2D())
             {
             too_wide |=  cell_width > L.z/2.0;
             }
@@ -263,7 +268,7 @@ HOSTDEVICE void CudaCell::computeCellNeighbors()
     //                 {
     //                 endk = (int)k + 1;
     //                 }
-    //             if (m_box.is2D())
+    //             if (d_box.is2D())
     //                 startk = endk = k;
 
     //             for (int neighk = startk; neighk <= endk; neighk++)

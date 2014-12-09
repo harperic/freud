@@ -12,6 +12,7 @@
 #include "cudabox.h"
 #include "num_util.h"
 #include "LinkCell.h"
+#include "CUDACELL.h"
 #include "Cluster.h"
 #include "GaussianDensity.h"
 #include "VoronoiBuffer.h"

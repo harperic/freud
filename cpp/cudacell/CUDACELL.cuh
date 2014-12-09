@@ -16,7 +16,7 @@ void CallCompute(unsigned int *p_array,
                  unsigned int nc,
                  trajectory::CudaBox &box,
                  Index3D& cell_idx,
-                 float3 *points);
+                 const float3 *points);
 
 void createIDXArray(unsigned int **IDXArray, size_t memSize);
 

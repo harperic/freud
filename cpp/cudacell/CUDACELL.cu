@@ -1,4 +1,5 @@
 #include <ostream>
+#include "HOOMDMath.h"
 #include "CUDACELL.cuh"
 
 using namespace std;
@@ -12,7 +13,7 @@ __global__ void computeCellList(unsigned int *p_array,
                                 unsigned int nc,
                                 trajectory::CudaBox box,
                                 Index3D& cell_idx,
-                                float3 *points)
+                                const float3 *points)
     {
     // determine particle being calculated
     int idx = blockIdx.x*blockDim.x + threadIdx.x;
@@ -29,7 +30,7 @@ __global__ void computeCellList(unsigned int *p_array,
         c.y %= cell_idx.getH();
         c.z = floorf(alpha.z * float(cell_idx.getD()));
         c.z %= cell_idx.getD();
-        uint3 c_idx = cell_idx(c.x, c.y, c.z);
+        unsigned int c_idx = cell_idx((int)c.x, (int)c.y, (int)c.z);
         p_array[idx] = idx;
         c_array[idx] = c_idx;
         }
@@ -41,12 +42,12 @@ void CallCompute(unsigned int *p_array,
                  unsigned int nc,
                  trajectory::CudaBox &box,
                  Index3D& cell_idx,
-                 float3 *points)
+                 const float3 *points)
     {
 
     // define grid and block size
     int numThreadsPerBlock = 32;
-    int numBlocks = (arrSize / numThreadsPerBlock) + 1;
+    int numBlocks = (np / numThreadsPerBlock) + 1;
 
     dim3 dimGrid(numBlocks);
     dim3 dimBlock(numThreadsPerBlock);

@@ -13,6 +13,7 @@
 
 #include "CUDAPMFT2D.cuh"
 #include "LinkCell.h"
+#include "CUDACELL.h"
 #include "num_util.h"
 #include "trajectory.h"
 #include "cudabox.h"

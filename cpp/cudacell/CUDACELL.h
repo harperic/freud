@@ -40,7 +40,7 @@ class CudaCell
     {
     public:
         //! Constructor
-        HOSTDEVICE CudaCell(const trajectory::CudaCell& box, float cell_width);
+        HOSTDEVICE CudaCell(const trajectory::CudaBox& box, float cell_width);
 
         //! Null Constructor for triclinic behavior
         HOSTDEVICE CudaCell();
@@ -114,10 +114,10 @@ class CudaCell
         unsigned int m_np;          //!< Number of particles last placed into the cell list
         unsigned int m_nc;          //!< Number of cells last used
         float m_cell_width;         //!< Minimum necessary cell width cutoff
-        float3 m_celldim; //!< Cell dimensions
+        uint3 m_celldim; //!< Cell dimensions
 
-        unsigned int *d_cidx_list;    //!< The list of cell indices
-        unsigned int *d_pidx_list;    //!< The list of particle indices
+        unsigned int *d_cidx_array;    //!< The list of cell indices
+        unsigned int *d_pidx_array;    //!< The list of particle indices
         float3 *d_point_list;    //!< The list of particle indices
 
         // This needs to be reimagined
