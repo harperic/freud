@@ -6,18 +6,19 @@ using namespace std;
 namespace freud { namespace cudapmft {
 
 // Part 3 of 5: implement the kernel
-__global__ void myFirstKernel(unsigned int *pmftArray, int arrSize)
+__global__ void myFirstKernel(unsigned int *pmftArray, unsigned int arrSize)
 {
     int idx = blockIdx.x*blockDim.x + threadIdx.x;
-    pmftArray[idx] = (int)(1000*blockIdx.x + threadIdx.x);
+    if (idx < arrSize)
+        pmftArray[idx] += (unsigned int)idx;
 }
 
-void CallMyFirstKernel(int *pmftArray, int arrSize)
+void CallMyFirstKernel(unsigned int *pmftArray, unsigned int arrSize)
     {
 
     // define grid and block size
     int numThreadsPerBlock = 32;
-    int numBlocks = arrSize / numThreadsPerBlock;
+    int numBlocks = (arrSize / numThreadsPerBlock) + 1;
 
     dim3 dimGrid(numBlocks);
     dim3 dimBlock(numThreadsPerBlock);
@@ -31,6 +32,8 @@ void CallMyFirstKernel(int *pmftArray, int arrSize)
     checkCUDAError("kernel execution");
     }
 
+// just write as a template function
+// this appears to either be non-trivial or not possible
 void createPMFTArray(unsigned int **pmftArray, unsigned int &arrSize, size_t &memSize, unsigned int nbins_x, unsigned int nbins_y)
     {
     arrSize = nbins_x * nbins_y;
@@ -42,6 +45,17 @@ void createPMFTArray(unsigned int **pmftArray, unsigned int &arrSize, size_t &me
 void freePMFTArray(unsigned int **pmftArray)
     {
     cudaFree(pmftArray);
+    }
+
+void createCudaArray(float **cudaArray, size_t memSize)
+    {
+    cudaMallocManaged(cudaArray, memSize);
+    cudaDeviceSynchronize();
+    }
+
+void freeCudaArray(float **cudaArray)
+    {
+    cudaFree(cudaArray);
     }
 
 void checkCUDAError(const char *msg)

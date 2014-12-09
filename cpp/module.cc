@@ -9,6 +9,7 @@
 #include <boost/python.hpp>
 
 #include "trajectory.h"
+#include "cudabox.h"
 #include "num_util.h"
 #include "LinkCell.h"
 #include "Cluster.h"

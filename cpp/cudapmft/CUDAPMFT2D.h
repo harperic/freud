@@ -15,6 +15,7 @@
 #include "LinkCell.h"
 #include "num_util.h"
 #include "trajectory.h"
+#include "cudabox.h"
 #include "Index1D.h"
 
 #ifndef _CUDAPMFT2D_H__
@@ -49,10 +50,10 @@ class CUDAPMFT2D
         ~CUDAPMFT2D();
 
         //! Get the simulation box
-        // const trajectory::Box& getBox() const
-        //     {
-        //     return m_box;
-        //     }
+        const trajectory::Box& getBox() const
+            {
+            return m_box;
+            }
 
         //! Reset the PCF array to all zeros
         void resetPCF();
@@ -125,7 +126,8 @@ class CUDAPMFT2D
             }
 
     private:
-        // trajectory::Box m_box;            //!< Simulation box the particles belong in
+        trajectory::Box m_box;            //!< Simulation box the particles belong in
+        trajectory::CudaBox d_box;            //!< Simulation box the particles belong in
         float m_max_x;                     //!< Maximum x at which to compute pcf
         float m_max_y;                     //!< Maximum y at which to compute pcf
         float m_dx;                       //!< Step size for x in the computation
@@ -134,11 +136,12 @@ class CUDAPMFT2D
         unsigned int m_nbins_x;             //!< Number of x bins to compute pcf over
         unsigned int m_nbins_y;             //!< Number of y bins to compute pcf over
 
-        // boost::shared_array<unsigned int> m_pcf_array;         //!< array of pcf computed
         unsigned int *d_pcf_array;         //!< array of pcf computed
         boost::shared_array<unsigned int> m_pcf_array;         //!< array of pcf computed
         boost::shared_array<float> m_x_array;           //!< array of x values that the pcf is computed at
+        float* d_x_array;           //!< array of x values that the pcf is computed at
         boost::shared_array<float> m_y_array;           //!< array of y values that the pcf is computed at
+        float* d_y_array;           //!< array of y values that the pcf is computed at
         // tbb::enumerable_thread_specific<unsigned int *> m_local_pcf_array;
         unsigned int m_arrSize;
         size_t m_memSize;
