@@ -43,7 +43,7 @@ void createPMFTArray(unsigned int **pmftArray, unsigned int &arrSize, size_t &me
     cudaDeviceSynchronize();
     }
 
-void freePMFTArray(unsigned int **pmftArray)
+void freePMFTArray(unsigned int *pmftArray)
     {
     cudaFree(pmftArray);
     }
@@ -54,7 +54,7 @@ void createCudaArray(float **cudaArray, size_t memSize)
     cudaDeviceSynchronize();
     }
 
-void freeCudaArray(float **cudaArray)
+void freeCudaArray(float *cudaArray)
     {
     cudaFree(cudaArray);
     }

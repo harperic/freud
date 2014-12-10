@@ -82,10 +82,29 @@ void createPointArray(float3 **IDXArray, size_t memSize)
     checkCUDAError("createPointArray");
     }
 
-void freeIDXArray(unsigned int **IDXArray)
+void createTestArray(int **IDXArray)
+    {
+    cudaMallocManaged(IDXArray, sizeof(int));
+    cudaDeviceSynchronize();
+    checkCUDAError("createTestArray");
+    }
+
+void freeIDXArray(unsigned int *IDXArray)
     {
     cudaFree(IDXArray);
     checkCUDAError("freeIDXArray");
+    }
+
+void freePointArray(float3 *IDXArray)
+    {
+    cudaFree(IDXArray);
+    checkCUDAError("freePointArray");
+    }
+
+void freeTestArray(int *IDXArray)
+    {
+    cudaFree(IDXArray);
+    checkCUDAError("freeTestArray");
     }
 
 void checkCUDAError(const char *msg)

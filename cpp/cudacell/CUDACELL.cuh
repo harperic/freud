@@ -22,7 +22,15 @@ void createIDXArray(unsigned int **IDXArray, size_t memSize);
 
 void createPointArray(float3 **IDXArray, size_t memSize);
 
-void freeIDXArray(unsigned int **IDXArray);
+void createTestArray(int **IDXArray);
+
+// just overload dumb dumb
+
+void freePointArray(float3 *IDXArray);
+
+void freeIDXArray(unsigned int *IDXArray);
+
+void freeTestArray(int *IDXArray);
 
 // Simple utility function to check for CUDA runtime errors
 void checkCUDAError(const char *msg);

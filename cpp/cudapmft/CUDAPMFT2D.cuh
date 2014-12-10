@@ -56,9 +56,9 @@ void createPMFTArray(unsigned int **pmftArray, unsigned int &arrSize, size_t &me
 
 void createCudaArray(float **cudaArray, size_t memSize);
 
-void freePMFTArray(unsigned int **pmftArray);
+void freePMFTArray(unsigned int *pmftArray);
 
-void freeCudaArray(float **cudaArray);
+void freeCudaArray(float *cudaArray);
 
 // Simple utility function to check for CUDA runtime errors
 void checkCUDAError(const char *msg);

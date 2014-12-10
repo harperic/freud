@@ -77,9 +77,9 @@ CUDAPMFT2D::CUDAPMFT2D(float max_x, float max_y, float dx, float dy)
 
 CUDAPMFT2D::~CUDAPMFT2D()
     {
-    freeCudaArray(&d_x_array);
-    freeCudaArray(&d_y_array);
-    freePMFTArray(&d_pcf_array);
+    freeCudaArray(d_x_array);
+    freeCudaArray(d_y_array);
+    freePMFTArray(d_pcf_array);
     delete m_cc;
     }
 
