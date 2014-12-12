@@ -51,6 +51,9 @@ class CudaCell
         //! Update cell_width
         HOSTDEVICE void setCellWidth(float cell_width);
 
+        //! Update cell_width
+        HOSTDEVICE void setRCut(float r_cut);
+
         //! Update box used in linkCell
         HOSTDEVICE void updateBox(const trajectory::CudaBox& box);
 
@@ -61,6 +64,18 @@ class CudaCell
         HOSTDEVICE const trajectory::CudaBox& getBox() const
             {
             return d_box;
+            }
+
+        //! Get the point list
+        HOSTDEVICE const unsigned int *getPIDX() const
+            {
+            return d_pidx_array;
+            }
+
+        //! Get the cell list
+        HOSTDEVICE const uint2 *getCIDX() const
+            {
+            return d_cidx_array;
             }
 
         //! Get the cell indexer
@@ -81,6 +96,7 @@ class CudaCell
             return m_cell_width;
             }
 
+        // recode to just use the data
         //! Compute the cell id for a given position
         HOSTDEVICE unsigned int getCell(const float3& p) const
             {
@@ -108,15 +124,22 @@ class CudaCell
     private:
         //! Rounding helper function.
         HOSTDEVICE static unsigned int roundDown(unsigned int v, unsigned int m);
+        HOSTDEVICE static unsigned int CudaCell::roundUp(unsigned int v, unsigned int m)
 
         trajectory::CudaBox d_box;            //!< Simulation box the particles belong in
         Index3D m_cell_index;       //!< Indexer to compute cell indices
         unsigned int m_np;          //!< Number of particles last placed into the cell list
         unsigned int m_nc;          //!< Number of cells last used
         float m_cell_width;         //!< Minimum necessary cell width cutoff
+        float m_r_cut;         //!< desired width to investigate
         uint3 m_celldim; //!< Cell dimensions
+        uint3 m_num_neighbors; //!< Number of neighbors in one direction (or two idk)
 
-        unsigned int *d_cidx_array;    //!< The list of cell indices
+        unsigned int *d_cp_array;    //!< The list of cell indices
+        unsigned int *d_cc_array;    //!< The list of cell indices
+        // consider making copies of these for easier python export
+        uint2 *d_cidx_array;    //!< The list of particle and cell indices, sorted by cell (.y)
+        uint2 *d_it_array;    //!< The array that holds the first/last idx of a cell
         unsigned int *d_pidx_array;    //!< The list of particle indices
         float3 *d_point_array;    //!< The list of particle indices
 

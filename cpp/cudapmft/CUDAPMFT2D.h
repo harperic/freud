@@ -82,6 +82,23 @@ class CUDAPMFT2D
                        boost::python::numeric::array points,
                        boost::python::numeric::array orientations);
 
+        //! Get a reference to the cell list used on the gpu array
+        boost::shared_array<unsigned int> getCellList()
+            {
+            boost::shared_array<unsigned int> return_array = boost::shared_array<unsigned int>(new unsigned int[m_np]);
+            memcpy((void*)return_array.get(), m_cc->getCIDX(), sizeof(unsigned int)*m_np);
+            return return_array;
+            }
+
+        //! Get a reference to the cell list used on the gpu array
+        boost::python::numeric::array getCellListPy()
+            {
+            boost::shared_array<unsigned int> return_array = boost::shared_array<unsigned int>(new unsigned int[m_np]);
+            memcpy((void*)return_array.get(), m_cc->getCIDX(), sizeof(unsigned int)*m_np);
+            unsigned int *arr = return_array.get();
+            return num_util::makeNum(arr, m_np);
+            }
+
         //! Get a reference to the PCF array
         boost::shared_array<unsigned int> getPCF()
             {
@@ -146,6 +163,7 @@ class CUDAPMFT2D
         // tbb::enumerable_thread_specific<unsigned int *> m_local_pcf_array;
         unsigned int m_arrSize;
         size_t m_memSize;
+        unsigned int m_np;
     };
 
 /*! \internal

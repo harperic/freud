@@ -18,13 +18,14 @@ namespace freud { namespace cudacell {
 HOSTDEVICE CudaCell::CudaCell()
     : d_box(trajectory::CudaBox()), m_np(0), m_cell_width(0)
     {
-    // m_celldim = make_unit3(0,0,0);
     m_celldim.x = 1;
     m_celldim.y = 1;
     m_celldim.z = 1;
-    createIDXArray(&d_cidx_array, sizeof(unsigned int));
-    createIDXArray(&d_pidx_array, sizeof(unsigned int));
-    createPointArray(&d_point_array, sizeof(float3));
+    // initialize arrays on gpu
+    createArray(&d_cidx_array, sizeof(uint2));
+    createArray(&d_it_array, sizeof(uint2));
+    createArray(&d_pidx_array, sizeof(unsigned int));
+    createArray(&d_point_array, sizeof(float3));
     }
 
 HOSTDEVICE CudaCell::CudaCell(const trajectory::CudaBox& box, float cell_width)
@@ -52,18 +53,21 @@ HOSTDEVICE CudaCell::CudaCell(const trajectory::CudaBox& box, float cell_width)
             m_celldim.z = 1;
             }
         }
-    createIDXArray(&d_cidx_array, sizeof(unsigned int));
-    createIDXArray(&d_pidx_array, sizeof(unsigned int));
-    createPointArray(&d_point_array, sizeof(float3));
+    // initialize arrays on gpu
+    createArray(&d_cidx_array, sizeof(uint2));
+    createArray(&d_it_array, sizeof(uint2));
+    createArray(&d_pidx_array, sizeof(unsigned int));
+    createArray(&d_point_array, sizeof(float3));
     m_cell_index = Index3D(m_celldim.x, m_celldim.y, m_celldim.z);
     computeCellNeighbors();
     }
 
 HOSTDEVICE CudaCell::~CudaCell()
     {
-    freeIDXArray(d_cidx_array);
-    freeIDXArray(d_pidx_array);
-    freePointArray(d_point_array);
+    freeArray(d_cidx_array);
+    freeArray(d_it_array);
+    freeArray(d_pidx_array);
+    freeArray(d_point_array);
     }
 
 HOSTDEVICE void CudaCell::setCellWidth(float cell_width)
@@ -99,6 +103,42 @@ HOSTDEVICE void CudaCell::setCellWidth(float cell_width)
             computeCellNeighbors();
             }
         m_cell_width = cell_width;
+        }
+    }
+
+HOSTDEVICE void CudaCell::setRCut(float r_cut)
+    {
+    // m_rcut is replacing the cpu cell_width, kind of
+    // they work together
+    // so that what the user used to set as the cell_width is now the rcut
+    // cell width is still set-able to make for efficient gpu usage
+    if (r_cut != m_r_cut)
+        {
+        // still need to check to make sure that requested r_cut isn't too big
+        float3 L = d_box.getNearestPlaneDistance();
+        // this needs to be changed to number of neighbors
+        uint3 num_neighbors = computeNumNeighbors(d_box, r_cut);
+        //Check if box is too small!
+        bool too_wide =  r_cut > L.x/2.0 || r_cut > L.y/2.0;
+        if (!d_box.is2D())
+            {
+            too_wide |=  r_cut > L.z/2.0;
+            }
+        //only 1 cell deep in 2D (no neighbors)
+        if (d_box.is2D())
+            {
+            num_neighbors.z = 0;
+            }
+        // check if the dims changed
+        if (!((num_neighbors.x == m_num_neighbors.x) && (num_neighbors.y == m_num_neighbors.y) && (num_neighbors.z == m_num_neighbors.z)))
+            {
+            // I don't think I need this
+            // m_cell_index = Index3D(num_neighbors.x, num_neighbors.y, num_neighbors.z);
+            // I wonder if this should be changed to hold the number of cells for a neighbor...
+            m_num_neighbors  = num_neighbors;
+            computeCellNeighbors();
+            }
+        m_r_cut = r_cut;
         }
     }
 
@@ -143,6 +183,14 @@ HOSTDEVICE unsigned int CudaCell::roundDown(unsigned int v, unsigned int m)
     return d*m;
     }
 
+HOSTDEVICE unsigned int CudaCell::roundUp(unsigned int v, unsigned int m)
+    {
+    // use integer floor division
+    // was obtained off stack exchange
+    unsigned int d = v/m + (v % m != 0);
+    return d*m;
+    }
+
 HOSTDEVICE const uint3 CudaCell::computeDimensions(const trajectory::CudaBox& box, float cell_width) const
     {
     uint3 dim;
@@ -175,11 +223,41 @@ HOSTDEVICE const uint3 CudaCell::computeDimensions(const trajectory::CudaBox& bo
     return dim;
     }
 
+HOSTDEVICE const uint3 CudaCell::computeNumNeighbors(const trajectory::CudaBox& box, float r_cut) const
+    {
+    uint3 dim;
+
+    //multiple is a holdover from hpmc...doesn't really need to be kept
+    unsigned int multiple = 1;
+    // determine the number of cells required
+    // always need to round down
+    dim.x = dim.y = dim.z = r_cut/m_cell_width;
+
+    if (box.is2D())
+        {
+        dim.z = 0;
+        }
+
+    // In extremely small boxes, the calculated dimensions could go to zero, but need at least one cell in each dimension
+    //  for particles to be in a cell and to pass the checkCondition tests.
+    // Note: Freud doesn't actually support these small boxes (as of this writing), but this function will return the correct dimensions
+    //  required anyways.
+    // if (dim.x == 0)
+    //     dim.x = 1;
+    // if (dim.y == 0)
+    //     dim.y = 1;
+    // if (dim.z == 0)
+    //     dim.z = 1;
+    return dim;
+    }
+
 HOSTDEVICE void CudaCell::computeCellList(trajectory::CudaBox& box,
                                           const float3 *points,
                                           unsigned int np)
     {
     updateBox(box);
+    // can't call from device
+    // may not make device callable, if that's possible
     // if (np == 0)
     //     {
     //     throw runtime_error("Cannot generate a cell list of 0 particles");
@@ -190,20 +268,21 @@ HOSTDEVICE void CudaCell::computeCellList(trajectory::CudaBox& box,
     assert(nc > 0);
     if ((m_np != np) || (m_nc != nc))
         {
-        // this will be a call to Cuda
-        freeIDXArray(d_cidx_array);
-        freeIDXArray(d_pidx_array);
-        freePointArray(d_point_array);
+        freeArray(d_cidx_array);
+        freeArray(d_it_array);
+        freeArray(d_pidx_array);
+        freeArray(d_point_array);
 
-        createIDXArray(&d_cidx_array, sizeof(unsigned int)*np);
-        createIDXArray(&d_pidx_array, sizeof(unsigned int)*np);
-        createPointArray(&d_point_array, sizeof(float3)*np);
+        createArray(&d_cidx_array, sizeof(uint2)*np);
+        createArray(&d_it_array, sizeof(uint2)*nc);
+        createArray(&d_pidx_array, sizeof(unsigned int)*np);
+        createArray(&d_point_array, sizeof(float3)*np);
         }
     memcpy((void*)d_point_array, (void*)points, sizeof(float3)*np);
     m_np = np;
     m_nc = nc;
     // points needs put onto the device
-    CallCompute(d_pidx_array, d_cidx_array, m_np, m_nc, d_box, m_cell_index, d_point_array);
+    cudaComputeCellList(d_pidx_array, d_cidx_array, d_it_array, m_np, m_nc, d_box, m_cell_index, d_point_array);
     }
 
 HOSTDEVICE void CudaCell::computeCellNeighbors()

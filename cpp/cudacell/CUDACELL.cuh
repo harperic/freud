@@ -2,7 +2,7 @@
 
 #ifndef __CUDACELL_CUH__
 #define __CUDACELL_CUH__
-#include "HOOMDMath.h"
+// #include "HOOMDMath.h"
 #include "Index1D.h"
 #include "cudabox.h"
 #include <stdio.h>
@@ -10,27 +10,26 @@
 
 namespace freud { namespace cudacell {
 
-void CallCompute(unsigned int *p_array,
-                 unsigned int *c_array,
-                 unsigned int np,
-                 unsigned int nc,
-                 trajectory::CudaBox &box,
-                 Index3D& cell_idx,
-                 const float3 *points);
+void cudaComputeCellList(unsigned int *p_array,
+                         uint2 *c_array,
+                         uint2 *it_array,
+                         unsigned int np,
+                         unsigned int nc,
+                         trajectory::CudaBox &box,
+                         Index3D& cell_idx,
+                         const float3 *points);
 
-void createIDXArray(unsigned int **IDXArray, size_t memSize);
+void createArray(unsigned int **array, size_t memSize);
 
-void createPointArray(float3 **IDXArray, size_t memSize);
+void freeArray(unsigned int *array);
 
-void createTestArray(int **IDXArray);
+void createArray(float3 **array, size_t memSize);
 
-// just overload dumb dumb
+void freeArray(float3 *array);
 
-void freePointArray(float3 *IDXArray);
+void createArray(uint2 **array, size_t memSize);
 
-void freeIDXArray(unsigned int *IDXArray);
-
-void freeTestArray(int *IDXArray);
+void freeArray(uint2 *array);
 
 // Simple utility function to check for CUDA runtime errors
 void checkCUDAError(const char *msg);

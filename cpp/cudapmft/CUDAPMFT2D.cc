@@ -24,7 +24,7 @@ using namespace boost::python;
 namespace freud { namespace cudapmft {
 
 CUDAPMFT2D::CUDAPMFT2D(float max_x, float max_y, float dx, float dy)
-    : m_box(trajectory::Box()), d_box(trajectory::CudaBox()), m_max_x(max_x), m_max_y(max_y), m_dx(dx), m_dy(dy)
+    : m_box(trajectory::Box()), d_box(trajectory::CudaBox()), m_max_x(max_x), m_max_y(max_y), m_dx(dx), m_dy(dy), m_np(0)
     {
     if (dx < 0.0f)
         throw invalid_argument("dx must be positive");
@@ -104,6 +104,10 @@ void CUDAPMFT2D::compute(float3 *ref_points,
                       float *orientations,
                       unsigned int Np)
     {
+    if (m_np != Np)
+        {
+        m_np = Np;
+        }
     m_cc->computeCellList(d_box, points, Np);
 
     // run the cuda kernel
@@ -174,6 +178,7 @@ void export_CUDAPMFT2D()
         .def("getBox", &CUDAPMFT2D::getBox, return_internal_reference<>())
         .def("compute", &CUDAPMFT2D::computePy)
         .def("getPCF", &CUDAPMFT2D::getPCFPy)
+        .def("getCellList", &CUDAPMFT2D::getCellListPy)
         .def("getX", &CUDAPMFT2D::getXPy)
         .def("getY", &CUDAPMFT2D::getYPy)
         .def("resetPCF", &CUDAPMFT2D::resetPCFPy)
