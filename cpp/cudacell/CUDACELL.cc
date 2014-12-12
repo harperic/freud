@@ -231,7 +231,7 @@ HOSTDEVICE const uint3 CudaCell::computeNumNeighbors(const trajectory::CudaBox& 
     unsigned int multiple = 1;
     // determine the number of cells required
     // always need to round down
-    dim.x = dim.y = dim.z = r_cut/m_cell_width;
+    dim.x = dim.y = dim.z = (unsigned int)(r_cut/m_cell_width);
 
     if (box.is2D())
         {
