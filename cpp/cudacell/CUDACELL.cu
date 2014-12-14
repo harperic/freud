@@ -80,7 +80,6 @@ __global__ void computeCellNeighbors(thrust::device_ptr<unsigned int> neighbor_l
     uint3 cell_idx3D = cell_idx((unsigned int)cell_idx1D);
     uint3 neigh_idx3D = neighbor_indexer((unsigned int)neigh_idx1D);
     int start_i, start_j, start_k;
-    // int end_i, end_j, end_k;
     if (cell_idx1D < nc)
         {
         if (celldim.x < 3)
@@ -107,31 +106,6 @@ __global__ void computeCellNeighbors(thrust::device_ptr<unsigned int> neighbor_l
             {
             start_k = (int)cell_idx3D.z - num_neighbors.z;
             }
-
-        // if (celldim.x < 2)
-        //     {
-        //     end_i = (int)cell_idx3D.x;
-        //     }
-        // else
-        //     {
-        //     end_i = (int)cell_idx3D.x + num_neighbors.x;
-        //     }
-        // if (celldim.y < 2)
-        //     {
-        //     end_j = (int)cell_idx3D.y;
-        //     }
-        // else
-        //     {
-        //     end_j = (int)cell_idx3D.y + num_neighbors.y;
-        //     }
-        // if (celldim.z < 2)
-        //     {
-        //     end_k = (int)cell_idx3D.z;
-        //     }
-        // else
-        //     {
-        //     end_k = (int)cell_idx3D.z + num_neighbors.z;
-        //     }
         // wrap back into the box
         int wrap_i = (cell_idx.getW()+start_i+neigh_idx3D.x) % cell_idx.getW();
         int wrap_j = (cell_idx.getH()+start_j+neigh_idx3D.y) % cell_idx.getH();

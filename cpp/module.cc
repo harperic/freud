@@ -12,7 +12,9 @@
 #include "cudabox.h"
 #include "num_util.h"
 #include "LinkCell.h"
+#ifdef ENABLE_CUDA
 #include "CUDACELL.h"
+#endif
 #include "Cluster.h"
 #include "GaussianDensity.h"
 #include "VoronoiBuffer.h"
@@ -24,7 +26,9 @@
 #include "InterfaceMeasure.h"
 #include "LocalQl.h"
 #include "pairing2D.h"
+#ifdef ENABLE_CUDA
 #include "CUDAPMFT2D.h"
+#endif
 #include "PMFXYZ.h"
 #include "PMFXY2D.h"
 #include "PMFTXYT2D.h"
@@ -105,8 +109,10 @@ BOOST_PYTHON_MODULE(_freud)
     sphericalharmonicorderparameters::export_LocalWl();
     sphericalharmonicorderparameters::export_SolLiq();
     pairing::export_pairing();
+    #ifdef ENABLE_CUDA
     cudapmft::export_CUDAPMFT2D();
     cudacell::export_CudaCell();
+	#endif
     pmft::export_PMFXYZ();
     pmft::export_PMFXY2D();
     pmft::export_PMFTXYT2D();
