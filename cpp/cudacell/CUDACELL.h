@@ -1,21 +1,22 @@
 #include <ostream>
 
 // work around nasty issue where python #defines isalpha, toupper, etc....
+#undef __APPLE__
+#include <Python.h>
+#define __APPLE__
+
+#include <boost/python.hpp>
+#include <boost/shared_array.hpp>
 
 #include "HOOMDMath.h"
 
 #include "CUDACELL.cuh"
+#include "num_util.h"
 #include "cudabox.h"
 #include "Index1D.h"
 
 #ifndef _CUDACELL_H__
 #define _CUDACELL_H__
-
-#ifdef NVCC
-// #define HOSTDEVICE __host__ __device__ inline
-#define HOSTDEVICE __host__ __device__
-#endif
-
 
 /*! \internal
     \file CUDACELL.h
@@ -40,72 +41,121 @@ class CudaCell
     {
     public:
         //! Constructor
-        HOSTDEVICE CudaCell(const trajectory::CudaBox& box, float cell_width);
+        CudaCell(const trajectory::CudaBox& box, float cell_width, float r_cut);
 
         //! Null Constructor for triclinic behavior
-        HOSTDEVICE CudaCell();
+        CudaCell();
 
         //! Destructor
-        HOSTDEVICE ~CudaCell();
+        ~CudaCell();
 
         //! Update cell_width
-        HOSTDEVICE void setCellWidth(float cell_width);
+        void setCellWidth(float cell_width);
 
         //! Update cell_width
-        HOSTDEVICE void setRCut(float r_cut);
+        void setRCut(float r_cut);
 
         //! Update box used in linkCell
-        HOSTDEVICE void updateBox(const trajectory::CudaBox& box);
+        void updateBox(const trajectory::CudaBox& box);
 
-        //! Compute LinkCell dimensions
-        HOSTDEVICE const uint3 computeDimensions(const trajectory::CudaBox& box, float cell_width) const;
+        //! Compute CudaCell dimensions
+        const uint3 computeDimensions(const trajectory::CudaBox& box, float cell_width) const;
+
+        //! Compute number of CudaCell neighbors
+        const uint3 computeNumNeighbors(const trajectory::CudaBox& box, float r_cut, float cell_width) const;
+
+        //! Get a reference to the cell list used on the gpu array
+        boost::shared_array<unsigned int> getCellList()
+            {
+            boost::shared_array<unsigned int> return_array = boost::shared_array<unsigned int>(new unsigned int[m_np*2]);
+            memcpy((void*)return_array.get(), d_cidx_array, sizeof(unsigned int)*m_np*2);
+            return return_array;
+            }
+
+        //! Get a reference to the cell list used on the gpu array
+        boost::python::numeric::array getCellListPy()
+            {
+            boost::shared_array<unsigned int> return_array = getCellList();
+            unsigned int *arr = return_array.get();
+            std::vector<intp> dims(2);
+            dims[0] = m_np;
+            dims[1] = 2;
+            return num_util::makeNum(arr, dims);
+            }
+
+        //! Get a reference to the cell list used on the gpu array
+        boost::shared_array<unsigned int> getCellNeighborList()
+            {
+            int arr_size = (int)((2*m_num_neighbors.x + 1)*(2*m_num_neighbors.y + 1)*(2*m_num_neighbors.z + 1));
+            boost::shared_array<unsigned int> return_array = boost::shared_array<unsigned int>(new unsigned int[m_nc*arr_size]);
+            memcpy((void*)return_array.get(), d_cell_neighbors, sizeof(unsigned int)*m_nc*arr_size);
+            return return_array;
+            }
+
+        //! Get a reference to the cell list used on the gpu array
+        boost::python::numeric::array getCellNeighborListPy()
+            {
+            int arr_size = (int)((2*m_num_neighbors.x + 1)*(2*m_num_neighbors.y + 1)*(2*m_num_neighbors.z + 1));
+            boost::shared_array<unsigned int> return_array = getCellNeighborList();
+            unsigned int *arr = return_array.get();
+            std::vector<intp> dims(2);
+            dims[0] = m_nc;
+            dims[1] = arr_size;
+            return num_util::makeNum(arr, dims);
+            }
 
         //! Get the simulation box
-        HOSTDEVICE const trajectory::CudaBox& getBox() const
+        const trajectory::CudaBox& getBox() const
             {
             return d_box;
             }
 
         //! Get the point list
-        HOSTDEVICE const unsigned int *getPIDX() const
+        const unsigned int *getPIDX() const
             {
             return d_pidx_array;
             }
 
         //! Get the cell list
-        HOSTDEVICE const uint2 *getCIDX() const
+        const unsigned int *getCIDX() const
             {
             return d_cidx_array;
             }
 
         //! Get the cell indexer
-        HOSTDEVICE const Index3D& getCellIndexer() const
+        const Index3D& getCellIndexer() const
             {
             return m_cell_index;
             }
 
         //! Get the number of cells
-        HOSTDEVICE unsigned int getNumCells() const
+        unsigned int getNumCells() const
             {
             return m_cell_index.getNumElements();
             }
 
         //! Get the cell width
-        HOSTDEVICE float getCellWidth() const
+        float getCellWidth() const
             {
             return m_cell_width;
             }
 
-        // recode to just use the data
+        //! Compute the cell id for a given particle idx
+        // this is just a simple wrapper
+        unsigned int getCell(const unsigned int& p) const
+            {
+            return d_pidx_array[(int)p];
+            }
+
         //! Compute the cell id for a given position
-        HOSTDEVICE unsigned int getCell(const float3& p) const
+        unsigned int getCell(const float3& p) const
             {
             uint3 c = getCellCoord(p);
             return m_cell_index(c.x, c.y, c.z);
             }
 
         //! Compute cell coordinates for a given position
-        HOSTDEVICE uint3 getCellCoord(const float3 p) const
+        uint3 getCellCoord(const float3 p) const
             {
             float3 alpha = d_box.makeFraction(p);
             uint3 c;
@@ -118,13 +168,18 @@ class CudaCell
             return c;
             }
 
+        uint3 getNumCellNeighbors() const
+            {
+            return m_num_neighbors;
+            }
+
         //! Compute the cell list
-        HOSTDEVICE void computeCellList(trajectory::CudaBox& box, const float3 *points, unsigned int Np);
+        void computeCellList(trajectory::CudaBox& box, const float3 *points, unsigned int Np);
 
     private:
         //! Rounding helper function.
-        HOSTDEVICE static unsigned int roundDown(unsigned int v, unsigned int m);
-        HOSTDEVICE static unsigned int CudaCell::roundUp(unsigned int v, unsigned int m)
+        static unsigned int roundDown(unsigned int v, unsigned int m);
+        static unsigned int roundUp(unsigned int v, unsigned int m);
 
         trajectory::CudaBox d_box;            //!< Simulation box the particles belong in
         Index3D m_cell_index;       //!< Indexer to compute cell indices
@@ -138,18 +193,24 @@ class CudaCell
         unsigned int *d_cp_array;    //!< The list of cell indices
         unsigned int *d_cc_array;    //!< The list of cell indices
         // consider making copies of these for easier python export
-        uint2 *d_cidx_array;    //!< The list of particle and cell indices, sorted by cell (.y)
-        uint2 *d_it_array;    //!< The array that holds the first/last idx of a cell
+        unsigned int *d_cidx_array;    //!< The list of particle and cell indices, sorted by cell (.y)
+        unsigned int *d_it_array;    //!< The array that holds the first/last idx of a cell
         unsigned int *d_pidx_array;    //!< The list of particle indices
         float3 *d_point_array;    //!< The list of particle indices
 
         // This needs to be reimagined
-        // std::vector< std::vector<unsigned int> > m_cell_neighbors;    //!< List of cell neighborts to each cell
+        // std::vector< std::vector<unsigned int> > m_cell_neighbors;    //!< List of cell neighbors to each cell
+        unsigned int *d_cell_neighbors; //!< List of cell neighbors to each cell
 
         //! Helper function to compute cell neighbors
-        HOSTDEVICE void computeCellNeighbors();
+        void computeCellNeighbors();
 
     };
+
+/*! \internal
+    \brief Exports all classes in this file to python
+*/
+void export_CudaCell();
 
 }; }; // end namespace freud::cudacell
 

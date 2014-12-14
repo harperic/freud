@@ -86,6 +86,16 @@ class Index2D
             return j*m_w + i;
             }
 
+        //! Calculate an index
+        /*! \param i 1D index
+            \returns uint3 array index corresponding to the 3D index (\a i, \a j, \a k) in row major order
+        */
+        HOSTDEVICE inline uint2 operator()(unsigned int i) const
+            {
+            return make_uint2(i % m_w,
+                              ((i - (i % m_w)) / m_w) % m_h);
+            }
+
         //! Get the number of 1D elements stored
         /*! \returns Number of elements stored in the underlying 1D array
         */
@@ -173,6 +183,17 @@ class Index3D
         HOSTDEVICE inline unsigned int operator()(unsigned int i, unsigned int j, unsigned int k) const
             {
             return k*m_w*m_h + j*m_w + i;
+            }
+
+        //! Calculate an index
+        /*! \param i 1D index
+            \returns uint3 array index corresponding to the 3D index (\a i, \a j, \a k) in row major order
+        */
+        HOSTDEVICE inline uint3 operator()(unsigned int i) const
+            {
+            return make_uint3(i % m_w,
+                              ((i - (i % m_w)) / m_w) % m_h,
+                              ((i - (i % m_w)) / m_w) - (((i - (i % m_w)) / m_w) % m_h) / m_d);
             }
 
         //! Get the number of 1D elements stored

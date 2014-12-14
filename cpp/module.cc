@@ -106,6 +106,7 @@ BOOST_PYTHON_MODULE(_freud)
     sphericalharmonicorderparameters::export_SolLiq();
     pairing::export_pairing();
     cudapmft::export_CUDAPMFT2D();
+    cudacell::export_CudaCell();
     pmft::export_PMFXYZ();
     pmft::export_PMFXY2D();
     pmft::export_PMFTXYT2D();
