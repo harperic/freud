@@ -65,6 +65,21 @@ class CudaCell
         const uint3 computeNumNeighbors(const trajectory::CudaBox& box, float r_cut, float cell_width) const;
 
         //! Get a reference to the cell list used on the gpu array
+        const unsigned int* getPointList() const
+            {
+            return d_pidx_array;
+            }
+
+        //! Get a reference to the cell list used on the gpu array
+        boost::python::numeric::array getPointListPy()
+            {
+            boost::shared_array<unsigned int> return_array = boost::shared_array<unsigned int>(new unsigned int[m_np]);
+            memcpy((void*)return_array.get(), d_cidx_array, sizeof(unsigned int)*m_np);
+            unsigned int *arr = return_array.get();
+            return num_util::makeNum(arr, m_np);
+            }
+
+        //! Get a reference to the cell list used on the gpu array
         const unsigned int* getCellList() const
             {
             return d_cidx_array;
@@ -78,6 +93,24 @@ class CudaCell
             unsigned int *arr = return_array.get();
             std::vector<intp> dims(2);
             dims[0] = m_np;
+            dims[1] = 2;
+            return num_util::makeNum(arr, dims);
+            }
+
+        //! Get a reference to the cell list used on the gpu array
+        const unsigned int* getIterList() const
+            {
+            return d_it_array;
+            }
+
+        //! Get a reference to the cell list used on the gpu array
+        boost::python::numeric::array getIterListPy()
+            {
+            boost::shared_array<unsigned int> return_array = boost::shared_array<unsigned int>(new unsigned int[m_nc*2]);
+            memcpy((void*)return_array.get(), d_it_array, sizeof(unsigned int)*m_nc*2);
+            unsigned int *arr = return_array.get();
+            std::vector<intp> dims(2);
+            dims[0] = m_nc;
             dims[1] = 2;
             return num_util::makeNum(arr, dims);
             }
@@ -104,18 +137,16 @@ class CudaCell
         //! Get a list of neighbors to a cell
         const unsigned int* getCellNeighbors(unsigned int cell) const
             {
-            int total_num_neighbors = (2*m_num_neighbors.x + 1)*(2*m_num_neighbors.y + 1)*(2*m_num_neighbors.z + 1);
-            unsigned int* return_array = new unsigned int[total_num_neighbors];
-            memcpy((void*)return_array, d_cell_neighbors + (cell*total_num_neighbors), total_num_neighbors);
+            unsigned int* return_array = new unsigned int[m_total_num_neighbors];
+            memcpy((void*)return_array, d_cell_neighbors + (cell*m_total_num_neighbors), m_total_num_neighbors);
             return return_array;
             }
 
         //! Python wrapper for getCellNeighbors
         boost::python::numeric::array getCellNeighborsPy(unsigned int cell)
             {
-            int total_num_neighbors = (2*m_num_neighbors.x + 1)*(2*m_num_neighbors.y + 1)*(2*m_num_neighbors.z + 1);
             const unsigned int *start = getCellNeighbors(cell);
-            return num_util::makeNum(start, total_num_neighbors);
+            return num_util::makeNum(start, m_total_num_neighbors);
             }
 
         //! Get the simulation box
@@ -124,16 +155,16 @@ class CudaCell
             return d_box;
             }
 
-        //! Get the point list
-        const unsigned int *getPIDX() const
-            {
-            return d_pidx_array;
-            }
-
         //! Get the cell indexer
         const Index3D& getCellIndexer() const
             {
             return m_cell_index;
+            }
+
+        //! Get the neighbor indexer
+        const Index2D& getNeighborIndexer() const
+            {
+            return m_expanded_thread_indexer;
             }
 
         //! Get the number of cells
@@ -191,9 +222,14 @@ class CudaCell
             return c;
             }
 
-        uint3 getNumCellNeighbors() const
+        const uint3 getNumCellNeighbors() const
             {
             return m_num_neighbors;
+            }
+
+        const int getTotalNumNeighbors() const
+            {
+            return m_total_num_neighbors;
             }
 
         //! Compute the cell list
@@ -209,6 +245,8 @@ class CudaCell
 
         trajectory::CudaBox d_box;            //!< Simulation box the particles belong in
         Index3D m_cell_index;       //!< Indexer to compute cell indices
+        Index2D m_expanded_thread_indexer;       //!< Indexer to the expanded cell neighbors list
+        int m_total_num_neighbors; //!< Number of neighbors for each cell
         unsigned int m_np;          //!< Number of particles last placed into the cell list
         unsigned int m_nc;          //!< Number of cells last used
         float m_cell_width;         //!< Minimum necessary cell width cutoff

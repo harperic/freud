@@ -3,6 +3,7 @@
 #ifndef __CUDAPMFT2D_CUH__
 #define __CUDAPMFT2D_CUH__
 #include "HOOMDMath.h"
+#include "Index1D.h"
 #include "cudabox.h"
 #include <stdio.h>
 #include <assert.h>
@@ -10,20 +11,26 @@
 namespace freud { namespace cudapmft {
 
 void cudaComputePCF(unsigned int *pmftArray,
-                    int nbins_x,
-                    int nbins_y,
+                    unsigned int nbins_x,
+                    unsigned int nbins_y,
                     trajectory::CudaBox &box,
                     float max_x,
                     float max_y,
                     float dx,
                     float dy,
-                    const unsigned int *cc,
+                    const unsigned int *pl,
+                    const unsigned int *cl,
+                    const unsigned int *nl,
+                    const unsigned int *it,
+                    const int total_num_neighbors,
+                    const Index2D& neighbor_indexer,
                     float3 *ref_points,
                     float *ref_orientations,
                     unsigned int n_ref,
                     float3 *points,
                     float *orientations,
-                    unsigned int n_p);
+                    unsigned int n_p,
+                    unsigned int n_c);
 
 void createPMFTArray(unsigned int **pmftArray, unsigned int &arrSize, size_t &memSize, unsigned int nbins_x, unsigned int nbins_y);
 

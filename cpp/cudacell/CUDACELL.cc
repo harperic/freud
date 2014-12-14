@@ -12,6 +12,7 @@
 
 #include "HOOMDMath.h"
 #include "VectorMath.h"
+#include "Index1D.h"
 
 using namespace std;
 using namespace boost::python;
@@ -24,7 +25,7 @@ using namespace boost::python;
 namespace freud { namespace cudacell {
 
 CudaCell::CudaCell()
-    : d_box(trajectory::CudaBox()), m_np(0), m_cell_width(0)
+    : d_box(trajectory::CudaBox()), m_np(0), m_cell_width(0), m_r_cut(0)
     {
     m_celldim.x = 1;
     m_celldim.y = 1;
@@ -35,6 +36,8 @@ CudaCell::CudaCell()
     createArray(&d_pidx_array, sizeof(unsigned int));
     createArray(&d_cell_neighbors, sizeof(unsigned int));
     createArray(&d_point_array, sizeof(float3));
+    // why are you barfing?
+    m_expanded_thread_indexer = Index2D(0, 0);
     }
 
 CudaCell::CudaCell(const trajectory::CudaBox& box, float cell_width, float r_cut)
@@ -69,6 +72,8 @@ CudaCell::CudaCell(const trajectory::CudaBox& box, float cell_width, float r_cut
     createArray(&d_cell_neighbors, sizeof(unsigned int));
     createArray(&d_point_array, sizeof(float3));
     m_cell_index = Index3D(m_celldim.x, m_celldim.y, m_celldim.z);
+    // why are you barfing?
+    m_expanded_thread_indexer = Index2D(0, 0);
     m_num_neighbors = computeNumNeighbors(d_box, m_r_cut, m_cell_width);
     computeCellNeighbors();
     }
@@ -302,18 +307,18 @@ void CudaCell::computeCellList(trajectory::CudaBox& box,
 void CudaCell::computeCellNeighbors()
     {
     unsigned int nc = getNumCells();
-    int total_num_neighbors = (2*m_num_neighbors.x + 1)*(2*m_num_neighbors.y + 1)*(2*m_num_neighbors.z + 1);
-    Index2D expanded_thread_indexer(total_num_neighbors, nc);
-    int arr_size = (int)nc*total_num_neighbors;
+    m_total_num_neighbors = (2*m_num_neighbors.x + 1)*(2*m_num_neighbors.y + 1)*(2*m_num_neighbors.z + 1);
+    m_expanded_thread_indexer = Index2D((unsigned int)m_total_num_neighbors, nc);
+    int arr_size = (int)nc*m_total_num_neighbors;
     freeArray(d_cell_neighbors);
     createArray(&d_cell_neighbors, sizeof(unsigned int)*arr_size);
     cudaComputeCellNeighbors(d_cell_neighbors,
                              m_celldim,
                              m_num_neighbors,
                              nc,
-                             total_num_neighbors,
+                             m_total_num_neighbors,
                              m_cell_index,
-                             expanded_thread_indexer);
+                             m_expanded_thread_indexer);
     }
 
 void CudaCell::computeCellListPy(trajectory::CudaBox& box,

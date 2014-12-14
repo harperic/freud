@@ -24,7 +24,7 @@ using namespace boost::python;
 namespace freud { namespace cudapmft {
 
 CUDAPMFT2D::CUDAPMFT2D(float max_x, float max_y, float dx, float dy)
-    : m_box(trajectory::Box()), d_box(trajectory::CudaBox()), m_max_x(max_x), m_max_y(max_y), m_dx(dx), m_dy(dy), m_np(0)
+    : m_box(trajectory::Box()), d_box(trajectory::CudaBox()), m_max_x(max_x), m_max_y(max_y), m_dx(dx), m_dy(dy), m_np(0), m_nref(0)
     {
     if (dx < 0.0f)
         throw invalid_argument("dx must be positive");
@@ -111,11 +111,28 @@ void CUDAPMFT2D::compute(float3 *ref_points,
                       float *orientations,
                       unsigned int Np)
     {
+    if (m_nref != Nref)
+        {
+        freeArray(d_ref_points);
+        freeArray(d_ref_orientations);
+        createArray(&d_ref_points, sizeof(float3)*Nref);
+        createArray(&d_ref_orientations, sizeof(float)*Nref);
+        m_nref = Nref;
+        }
     if (m_np != Np)
         {
+        freeArray(d_points);
+        freeArray(d_orientations);
+        createArray(&d_points, sizeof(float3)*Np);
+        createArray(&d_orientations, sizeof(float)*Np);
         m_np = Np;
         }
+    memcpy((void*)d_ref_points, (void*)ref_points, sizeof(float3)*m_nref);
+    memcpy((void*)d_ref_orientations, (void*)ref_orientations, sizeof(float)*m_nref);
+    memcpy((void*)d_points, (void*)points, sizeof(float3)*m_nref);
+    memcpy((void*)d_orientations, (void*)orientations, sizeof(float)*m_nref);
     m_cc->computeCellList(d_box, points, Np);
+
 
     // run the cuda kernel
     // don't need to explicitly accumulate since d is already populated
@@ -127,13 +144,19 @@ void CUDAPMFT2D::compute(float3 *ref_points,
                       m_max_y,
                       m_dx,
                       m_dy,
+                      m_cc->getPointList(),
                       m_cc->getCellList(),
+                      m_cc->getCellNeighborList(),
+                      m_cc->getIterList(),
+                      m_cc->getTotalNumNeighbors(),
+                      m_cc->getNeighborIndexer(),
                       d_ref_points,
                       d_ref_orientations,
                       Nref,
                       d_points,
                       d_orientations,
-                      Np);
+                      Np,
+                      m_cc->getNumCells());
     }
 
 //! \internal

@@ -68,7 +68,7 @@ class Index2D
         //! Contstructor
         /*! \param w Width of the square 2D array
         */
-        HOSTDEVICE inline Index2D(unsigned int w) : m_w(w), m_h(w) {}
+        HOSTDEVICE inline Index2D(unsigned int w=0) : m_w(w), m_h(w) {}
 
         //! Contstructor
         /*! \param w Width of the rectangular 2D array

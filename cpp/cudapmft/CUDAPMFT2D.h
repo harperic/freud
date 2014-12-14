@@ -150,6 +150,7 @@ class CUDAPMFT2D
         // tbb::enumerable_thread_specific<unsigned int *> m_local_pcf_array;
         unsigned int m_arrSize;
         size_t m_memSize;
+        unsigned int m_nref;
         unsigned int m_np;
     };
 
