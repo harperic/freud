@@ -45,25 +45,23 @@ CUDAPMFT2D::CUDAPMFT2D(float max_x, float max_y, float dx, float dy)
     assert(m_nbins_y > 0);
 
     // precompute the bin center positions for x
-    createCudaArray(&d_x_array, sizeof(float)*m_nbins_x);
+    createArray(&d_x_array, sizeof(float)*m_nbins_x);
     m_x_array = boost::shared_array<float>(new float[m_nbins_x]);
     for (unsigned int i = 0; i < m_nbins_x; i++)
         {
         float x = float(i) * m_dx;
         float nextx = float(i+1) * m_dx;
-        m_x_array[i] = -m_max_x + ((x + nextx) / 2.0);
-        d_x_array[i] = m_x_array[i];
+        d_x_array[i] = m_x_array[i] = -m_max_x + ((x + nextx) / 2.0);
         }
 
     // precompute the bin center positions for y
-    createCudaArray(&d_y_array, sizeof(float)*m_nbins_y);
+    createArray(&d_y_array, sizeof(float)*m_nbins_y);
     m_y_array = boost::shared_array<float>(new float[m_nbins_y]);
     for (unsigned int i = 0; i < m_nbins_y; i++)
         {
         float y = float(i) * m_dy;
         float nexty = float(i+1) * m_dy;
-        m_y_array[i] = -m_max_y + ((y + nexty) / 2.0);
-        d_y_array[i] = m_y_array[i];
+        d_y_array[i] = m_y_array[i] = -m_max_y + ((y + nexty) / 2.0);
         }
 
     // create and populate the pcf_array
@@ -73,13 +71,22 @@ CUDAPMFT2D::CUDAPMFT2D(float max_x, float max_y, float dx, float dy)
     memset((void*)m_pcf_array.get(), 0, sizeof(unsigned int)*m_nbins_x*m_nbins_y);
 
     m_cc = new cudacell::CudaCell(d_box, sqrtf(m_max_x*m_max_x + m_max_y*m_max_y), sqrtf(m_max_x*m_max_x + m_max_y*m_max_y));
+    // init memory for points, orientations
+    createArray(&d_ref_points, sizeof(float3));
+    createArray(&d_ref_orientations, sizeof(float));
+    createArray(&d_points, sizeof(float3));
+    createArray(&d_orientations, sizeof(float));
     }
 
 CUDAPMFT2D::~CUDAPMFT2D()
     {
-    freeCudaArray(d_x_array);
-    freeCudaArray(d_y_array);
-    freePMFTArray(d_pcf_array);
+    freeArray(d_x_array);
+    freeArray(d_y_array);
+    freeArray(d_pcf_array);
+    freeArray(d_ref_points);
+    freeArray(d_ref_orientations);
+    freeArray(d_points);
+    freeArray(d_orientations);
     delete m_cc;
     }
 
@@ -112,7 +119,21 @@ void CUDAPMFT2D::compute(float3 *ref_points,
 
     // run the cuda kernel
     // don't need to explicitly accumulate since d is already populated
-    CallMyFirstKernel(d_pcf_array, m_arrSize, d_box);
+    cudaComputePCF(d_pcf_array,
+                      m_nbins_x,
+                      m_nbins_y,
+                      d_box,
+                      m_max_x,
+                      m_max_y,
+                      m_dx,
+                      m_dy,
+                      m_cc->getCellList(),
+                      d_ref_points,
+                      d_ref_orientations,
+                      Nref,
+                      d_points,
+                      d_orientations,
+                      Np);
     }
 
 //! \internal
@@ -178,8 +199,6 @@ void export_CUDAPMFT2D()
         .def("getBox", &CUDAPMFT2D::getBox, return_internal_reference<>())
         .def("compute", &CUDAPMFT2D::computePy)
         .def("getPCF", &CUDAPMFT2D::getPCFPy)
-        .def("getCellList", &CUDAPMFT2D::getCellListPy)
-        .def("getCellNeighborList", &CUDAPMFT2D::getCellNeighborListPy)
         .def("getX", &CUDAPMFT2D::getXPy)
         .def("getY", &CUDAPMFT2D::getYPy)
         .def("resetPCF", &CUDAPMFT2D::resetPCFPy)

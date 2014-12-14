@@ -316,15 +316,38 @@ void CudaCell::computeCellNeighbors()
                              expanded_thread_indexer);
     }
 
+void CudaCell::computeCellListPy(trajectory::CudaBox& box,
+                                 boost::python::numeric::array points)
+    {
+    // validate input type and rank
+    num_util::check_type(points, NPY_FLOAT);
+    num_util::check_rank(points, 2);
+
+    // validate that the 2nd dimension is only 3
+    num_util::check_dim(points, 1, 3);
+    unsigned int Np = num_util::shape(points)[0];
+
+    // get the raw data pointers and compute the cell list
+    float3* points_raw = (float3*) num_util::data(points);
+
+        // compute the cell list with the GIL released
+        {
+        util::ScopedGILRelease gil;
+        computeCellList(box, points_raw, Np);
+        }
+    }
+
 void export_CudaCell()
     {
     class_<CudaCell>("CudaCell", init<trajectory::CudaBox&, float, float>())
         .def("getBox", &CudaCell::getBox, return_internal_reference<>())
         .def("getCellIndexer", &CudaCell::getCellIndexer, return_internal_reference<>())
         .def("getNumCells", &CudaCell::getNumCells)
-        // .def("getCell", &CudaCell::getCellPy)
-        // .def("getCellNeighbors", &CudaCell::getCellNeighborsPy)
-        // .def("computeCellList", &CudaCell::computeCellListPy)
+        .def("getCell", &CudaCell::getCellPy)
+        .def("getCellList", &CudaCell::getCellListPy)
+        .def("getCellNeighborList", &CudaCell::getCellNeighborListPy)
+        .def("getCellNeighbors", &CudaCell::getCellNeighborsPy)
+        .def("computeCellList", &CudaCell::computeCellListPy)
         ;
     }
 

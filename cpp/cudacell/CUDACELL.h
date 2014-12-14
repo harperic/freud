@@ -65,17 +65,16 @@ class CudaCell
         const uint3 computeNumNeighbors(const trajectory::CudaBox& box, float r_cut, float cell_width) const;
 
         //! Get a reference to the cell list used on the gpu array
-        boost::shared_array<unsigned int> getCellList()
+        const unsigned int* getCellList() const
             {
-            boost::shared_array<unsigned int> return_array = boost::shared_array<unsigned int>(new unsigned int[m_np*2]);
-            memcpy((void*)return_array.get(), d_cidx_array, sizeof(unsigned int)*m_np*2);
-            return return_array;
+            return d_cidx_array;
             }
 
         //! Get a reference to the cell list used on the gpu array
         boost::python::numeric::array getCellListPy()
             {
-            boost::shared_array<unsigned int> return_array = getCellList();
+            boost::shared_array<unsigned int> return_array = boost::shared_array<unsigned int>(new unsigned int[m_np*2]);
+            memcpy((void*)return_array.get(), d_cidx_array, sizeof(unsigned int)*m_np*2);
             unsigned int *arr = return_array.get();
             std::vector<intp> dims(2);
             dims[0] = m_np;
@@ -84,24 +83,39 @@ class CudaCell
             }
 
         //! Get a reference to the cell list used on the gpu array
-        boost::shared_array<unsigned int> getCellNeighborList()
+        const unsigned int* getCellNeighborList() const
             {
-            int arr_size = (int)((2*m_num_neighbors.x + 1)*(2*m_num_neighbors.y + 1)*(2*m_num_neighbors.z + 1));
-            boost::shared_array<unsigned int> return_array = boost::shared_array<unsigned int>(new unsigned int[m_nc*arr_size]);
-            memcpy((void*)return_array.get(), d_cell_neighbors, sizeof(unsigned int)*m_nc*arr_size);
-            return return_array;
+            return d_cell_neighbors;
             }
 
         //! Get a reference to the cell list used on the gpu array
         boost::python::numeric::array getCellNeighborListPy()
             {
             int arr_size = (int)((2*m_num_neighbors.x + 1)*(2*m_num_neighbors.y + 1)*(2*m_num_neighbors.z + 1));
-            boost::shared_array<unsigned int> return_array = getCellNeighborList();
+            boost::shared_array<unsigned int> return_array = boost::shared_array<unsigned int>(new unsigned int[m_nc*arr_size]);
+            memcpy((void*)return_array.get(), d_cell_neighbors, sizeof(unsigned int)*m_nc*arr_size);
             unsigned int *arr = return_array.get();
             std::vector<intp> dims(2);
             dims[0] = m_nc;
             dims[1] = arr_size;
             return num_util::makeNum(arr, dims);
+            }
+
+        //! Get a list of neighbors to a cell
+        const unsigned int* getCellNeighbors(unsigned int cell) const
+            {
+            int total_num_neighbors = (2*m_num_neighbors.x + 1)*(2*m_num_neighbors.y + 1)*(2*m_num_neighbors.z + 1);
+            unsigned int* return_array = new unsigned int[total_num_neighbors];
+            memcpy((void*)return_array, d_cell_neighbors + (cell*total_num_neighbors), total_num_neighbors);
+            return return_array;
+            }
+
+        //! Python wrapper for getCellNeighbors
+        boost::python::numeric::array getCellNeighborsPy(unsigned int cell)
+            {
+            int total_num_neighbors = (2*m_num_neighbors.x + 1)*(2*m_num_neighbors.y + 1)*(2*m_num_neighbors.z + 1);
+            const unsigned int *start = getCellNeighbors(cell);
+            return num_util::makeNum(start, total_num_neighbors);
             }
 
         //! Get the simulation box
@@ -114,12 +128,6 @@ class CudaCell
         const unsigned int *getPIDX() const
             {
             return d_pidx_array;
-            }
-
-        //! Get the cell list
-        const unsigned int *getCIDX() const
-            {
-            return d_cidx_array;
             }
 
         //! Get the cell indexer
@@ -154,6 +162,21 @@ class CudaCell
             return m_cell_index(c.x, c.y, c.z);
             }
 
+        //! Wrapper for python to getCell (1D index)
+        unsigned int getCellPy(boost::python::numeric::array p)
+            {
+            // validate input type and rank
+            num_util::check_type(p, NPY_FLOAT);
+            num_util::check_rank(p, 1);
+
+            // validate that the 2nd dimension is only 3
+            num_util::check_size(p, 3);
+
+            // get the raw data pointers and compute the cell index
+            float3* p_raw = (float3*) num_util::data(p);
+            return getCell(*p_raw);
+            }
+
         //! Compute cell coordinates for a given position
         uint3 getCellCoord(const float3 p) const
             {
@@ -175,6 +198,9 @@ class CudaCell
 
         //! Compute the cell list
         void computeCellList(trajectory::CudaBox& box, const float3 *points, unsigned int Np);
+
+        //! Python wrapper for computeCellList
+        void computeCellListPy(trajectory::CudaBox& box, boost::python::numeric::array points);
 
     private:
         //! Rounding helper function.

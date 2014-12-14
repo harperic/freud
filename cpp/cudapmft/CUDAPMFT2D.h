@@ -82,37 +82,6 @@ class CUDAPMFT2D
                        boost::python::numeric::array points,
                        boost::python::numeric::array orientations);
 
-        //! Get a reference to the cell list used on the gpu array
-        boost::shared_array<unsigned int> getCellList()
-            {
-            boost::shared_array<unsigned int> return_array = boost::shared_array<unsigned int>(new unsigned int[m_np]);
-            memcpy((void*)return_array.get(), m_cc->getCIDX(), sizeof(unsigned int)*m_np);
-            return return_array;
-            }
-
-        //! Get a reference to the cell list used on the gpu array
-        boost::python::numeric::array getCellListPy()
-            {
-            boost::shared_array<unsigned int> return_array = m_cc->getCellList();
-            unsigned int *arr = return_array.get();
-            std::vector<intp> dims(2);
-            dims[0] = m_np;
-            dims[1] = 2;
-            return num_util::makeNum(arr, dims);
-            }
-
-        //! Get a reference to the cell list used on the gpu array
-        boost::python::numeric::array getCellNeighborListPy()
-            {
-            int arr_size = (int)((2*m_cc->getNumCellNeighbors().x + 1)*(2*m_cc->getNumCellNeighbors().y + 1)*(2*m_cc->getNumCellNeighbors().z + 1));
-            boost::shared_array<unsigned int> return_array = m_cc->getCellNeighborList();
-            unsigned int *arr = return_array.get();
-            std::vector<intp> dims(2);
-            dims[0] = m_cc->getNumCells();
-            dims[1] = arr_size;
-            return num_util::makeNum(arr, dims);
-            }
-
         //! Get a reference to the PCF array
         boost::shared_array<unsigned int> getPCF()
             {
@@ -174,6 +143,10 @@ class CUDAPMFT2D
         float* d_x_array;           //!< array of x values that the pcf is computed at
         boost::shared_array<float> m_y_array;           //!< array of y values that the pcf is computed at
         float* d_y_array;           //!< array of y values that the pcf is computed at
+        float3* d_ref_points;           //!< array of points
+        float* d_ref_orientations;           //!< array of points
+        float3* d_points;           //!< array of points
+        float* d_orientations;           //!< array of points
         // tbb::enumerable_thread_specific<unsigned int *> m_local_pcf_array;
         unsigned int m_arrSize;
         size_t m_memSize;
