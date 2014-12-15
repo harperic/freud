@@ -213,6 +213,8 @@ class ComputePMFXY2D
                         float y = rotVec.y + m_max_y;
 
                         // find the bin to increment
+                        // there is no explicit "rsq < rcut" check and this is relying on undefined behavior
+                        // needs to be updated to what occurs in the cuda branch
                         float binx = floorf(x * dx_inv);
                         float biny = floorf(y * dy_inv);
                         // fast float to int conversion with truncation
