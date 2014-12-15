@@ -66,6 +66,7 @@ CUDAPMFT2D::CUDAPMFT2D(float max_x, float max_y, float dx, float dy)
 
     // create and populate the pcf_array
     createPMFTArray(&d_pcf_array, m_arrSize, m_memSize, m_nbins_x, m_nbins_y);
+    // createArray(&d_pcf_array, sizeof(unsigned int)*m_nbins_x*m_nbins_y);
     memset((void*)d_pcf_array, 0, sizeof(unsigned int)*m_nbins_x*m_nbins_y);
     m_pcf_array = boost::shared_array<unsigned int>(new unsigned int[m_nbins_x * m_nbins_y]);
     memset((void*)m_pcf_array.get(), 0, sizeof(unsigned int)*m_nbins_x*m_nbins_y);

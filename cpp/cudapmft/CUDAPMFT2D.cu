@@ -70,16 +70,24 @@ __global__ void computePCF(unsigned int *pmftArray,
                     continue;
                     }
                 // rotate the interparticle vector
+                // it would appear that the binning is not being performed correctly as there are negative bins being calc'd
+                // which is weird; this shouldn't be happening
                 float x = delta.x*cos_theta - delta.y*sin_theta + max_x;
                 float y = delta.x*sin_theta + delta.y*cos_theta + max_y;
                 // find the bin to increment
-                unsigned int binx = (unsigned int)floor(x * dx_inv);
-                unsigned int biny = (unsigned int)floor(y * dy_inv);
+                float binx = floorf(x * dx_inv);
+                float biny = floorf(y * dy_inv);
+                if ((binx < 0) || (biny < 0))
+                    {
+                    continue;
+                    }
+                unsigned int ibinx = (unsigned int)binx;
+                unsigned int ibiny = (unsigned int)biny;
                 // increment the bin
-                if ((binx < (int)nbins_x) && (biny < (int)nbins_y))
+                if ((ibinx < nbins_x) && (ibiny < nbins_y))
                     {
                     // printf("Incrementing bins\n");
-                    atomicAdd(&pmftArray[(int)b_i((unsigned int)binx, (unsigned int)biny)], 1);
+                    atomicAdd(&pmftArray[b_i(ibinx, ibiny)], 1);
                     }
                 }
             }
@@ -115,28 +123,27 @@ void cudaComputePCF(unsigned int *pmftArray,
     dim3 dimGrid(numBlocks);
     dim3 dimBlock(numThreadsPerBlock);
     checkCUDAError("prior to kernel execution");
-    computePCF<<< dimGrid, dimBlock >>>( pmftArray,
-                                         nbins_x,
-                                         nbins_y,
-                                         box,
-                                         max_x,
-                                         max_y,
-                                         dx,
-                                         dy,
-                                         pl,
-                                         cl,
-                                         nl,
-                                         it,
-                                         total_num_neighbors,
-                                         neighbor_indexer,
-                                         ref_points,
-                                         ref_orientations,
-                                         n_ref,
-                                         points,
-                                         orientations,
-                                         n_p,
-                                         n_c);
-
+    computePCF<<< dimGrid, dimBlock >>>(pmftArray,
+                                        nbins_x,
+                                        nbins_y,
+                                        box,
+                                        max_x,
+                                        max_y,
+                                        dx,
+                                        dy,
+                                        pl,
+                                        cl,
+                                        nl,
+                                        it,
+                                        total_num_neighbors,
+                                        neighbor_indexer,
+                                        ref_points,
+                                        ref_orientations,
+                                        n_ref,
+                                        points,
+                                        orientations,
+                                        n_p,
+                                        n_c);
     // block until the device has completed
     cudaDeviceSynchronize();
 

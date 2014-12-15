@@ -104,11 +104,11 @@ class CUDAPMFT2D
         //! Python wrapper for getPCF() (returns a copy)
         boost::python::numeric::array getPCFPy()
             {
-            memcpy((void*)m_pcf_array.get(), d_pcf_array, m_memSize);
+            memcpy((void*)m_pcf_array.get(), d_pcf_array, sizeof(unsigned int)*m_nbins_x*m_nbins_y);
             unsigned int *arr = m_pcf_array.get();
             std::vector<intp> dims(2);
-            dims[0] = m_nbins_y;
-            dims[1] = m_nbins_x;
+            dims[0] = m_nbins_x;
+            dims[1] = m_nbins_y;
             return num_util::makeNum(arr, dims);
             }
 
