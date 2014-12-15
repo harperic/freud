@@ -12,6 +12,7 @@
 #include "cudabox.h"
 #include "num_util.h"
 #include "LinkCell.h"
+// might try replacing with #ifdef NVCC
 // #ifdef ENABLE_CUDA
 #include "CUDACELL.h"
 // #endif

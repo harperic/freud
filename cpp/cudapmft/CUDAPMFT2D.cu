@@ -49,7 +49,7 @@ __global__ void computePCF(unsigned int *pmftArray,
             {
             // currently, the retrieval of idx is not correct
             // get the neighbor of the cell
-            int neigh_idx = (int)nl[neighbor_indexer(i, cell_idx)];
+            int neigh_idx = (int)nl[neighbor_indexer((unsigned int)i, cell_idx)];
             // get the start/stop idxs of this cell
             int start_idx = (int)it[2*neigh_idx + 0];
             int stop_idx = (int)it[2*neigh_idx + 1];
@@ -57,7 +57,7 @@ __global__ void computePCF(unsigned int *pmftArray,
             for (int j = start_idx; j < stop_idx; j++)
                 {
                 // get the particle idx
-                int comp_idx = cl[c_i(0,j)];
+                int comp_idx = cl[c_i(0,(unsigned int)j)];
                 // get the pos/orientation of the particle
                 float3 pos = points[comp_idx];
                 // create the delta vector
@@ -70,16 +70,16 @@ __global__ void computePCF(unsigned int *pmftArray,
                     continue;
                     }
                 // rotate the interparticle vector
-                float x = delta.x*cos_theta - delta.y*sin_theta;
-                float y = delta.x*sin_theta + delta.y*cos_theta;
+                float x = delta.x*cos_theta - delta.y*sin_theta + max_x;
+                float y = delta.x*sin_theta + delta.y*cos_theta + max_y;
                 // find the bin to increment
                 unsigned int binx = (unsigned int)floor(x * dx_inv);
                 unsigned int biny = (unsigned int)floor(y * dy_inv);
                 // increment the bin
-                if ((binx < nbins_x) && (biny < nbins_y))
+                if ((binx < (int)nbins_x) && (biny < (int)nbins_y))
                     {
                     // printf("Incrementing bins\n");
-                    atomicAdd(&pmftArray[(int)b_i(binx, biny)], 1);
+                    atomicAdd(&pmftArray[(int)b_i((unsigned int)binx, (unsigned int)biny)], 1);
                     }
                 }
             }
