@@ -182,6 +182,7 @@ class ComputePMFXY2D
             for (size_t i = myR.begin(); i != myR.end(); i++)
                 {
                 vec3<float> ref = m_ref_points[i];
+                rotmat2<float> myMat = rotmat2<float>::fromAngle(-m_ref_orientations[i]);
                 // get the cell the point is in
                 unsigned int ref_cell = m_lc->getCell(ref);
 
@@ -207,7 +208,6 @@ class ComputePMFXY2D
 
                         // rotate interparticle vector
                         vec2<float> myVec(delta.x, delta.y);
-                        rotmat2<float> myMat = rotmat2<float>::fromAngle(-m_ref_orientations[i]);
                         vec2<float> rotVec = myMat * myVec;
                         float x = rotVec.x + m_max_x;
                         float y = rotVec.y + m_max_y;

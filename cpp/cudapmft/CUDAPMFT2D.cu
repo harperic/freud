@@ -5,7 +5,6 @@ using namespace std;
 
 namespace freud { namespace cudapmft {
 
-// Part 3 of 5: implement the kernel
 __global__ void computePCF(unsigned int *pmftArray,
                            unsigned int nbins_x,
                            unsigned int nbins_y,
@@ -19,6 +18,7 @@ __global__ void computePCF(unsigned int *pmftArray,
                            const unsigned int *nl,
                            const unsigned int *it,
                            const int total_num_neighbors,
+                           Index3D cell_indexer,
                            Index2D neighbor_indexer,
                            float3 *ref_points,
                            float *ref_orientations,
@@ -27,7 +27,7 @@ __global__ void computePCF(unsigned int *pmftArray,
                            float *orientations,
                            unsigned int n_p,
                            unsigned int n_c)
-{
+    {
     // get the particle index
     int idx = blockIdx.x*blockDim.x + threadIdx.x;
     // precalc some values for faster computation within the loop
@@ -43,7 +43,17 @@ __global__ void computePCF(unsigned int *pmftArray,
         // get the pos/orientation of the particle
         float3 ref_pos = ref_points[idx];
         // get the cell of the particle
-        unsigned int cell_idx = pl[idx];
+        // avoids use of point list and may/should save memory
+        float3 alpha = box.makeFraction(ref_pos);
+        uint3 c;
+        c.x = floorf(alpha.x * float(cell_indexer.getW()));
+        c.x %= cell_indexer.getW();
+        c.y = floorf(alpha.y * float(cell_indexer.getH()));
+        c.y %= cell_indexer.getH();
+        c.z = floorf(alpha.z * float(cell_indexer.getD()));
+        c.z %= cell_indexer.getD();
+        // unsigned int cell_idx = pl[idx];
+        unsigned int cell_idx = cell_indexer(c.x, c.y, c.z);
         // loop over cell neighbors
         for (int i = 0; i < total_num_neighbors; i++)
             {
@@ -70,8 +80,6 @@ __global__ void computePCF(unsigned int *pmftArray,
                     continue;
                     }
                 // rotate the interparticle vector
-                // it would appear that the binning is not being performed correctly as there are negative bins being calc'd
-                // which is weird; this shouldn't be happening
                 float x = delta.x*cos_theta - delta.y*sin_theta + max_x;
                 float y = delta.x*sin_theta + delta.y*cos_theta + max_y;
                 // find the bin to increment
@@ -92,7 +100,102 @@ __global__ void computePCF(unsigned int *pmftArray,
                 }
             }
         }
-}
+    }
+
+__global__ void sharedPCF(unsigned int *pmftArray,
+                          unsigned int nbins_x,
+                          unsigned int nbins_y,
+                          trajectory::CudaBox box,
+                          float max_x,
+                          float max_y,
+                          float dx,
+                          float dy,
+                          const unsigned int *pl,
+                          const unsigned int *cl,
+                          const unsigned int *nl,
+                          const unsigned int *it,
+                          const int total_num_neighbors,
+                          Index3D cell_indexer,
+                          Index2D neighbor_indexer,
+                          float3 *ref_points,
+                          float *ref_orientations,
+                          unsigned int n_ref,
+                          float3 *points,
+                          float *orientations,
+                          unsigned int n_p,
+                          unsigned int n_c)
+    {
+    // get the cell index
+    int cell_idx = blockIdx.x;
+    int local_idx = threadIdx.x;
+    // precalc some values for faster computation within the loop
+    float dx_inv = 1.0f / dx;
+    float dy_inv = 1.0f / dy;
+    Index2D b_i = Index2D(nbins_x, nbins_y);
+    Index2D c_i = Index2D(2, n_c);
+    // for now, let's just assume that there are fewer particles than
+    // there are threads...
+    // these will probably need shrunk
+    __shared__ float3 ref_pos[64];
+    __shared__ float2 ref_theta[64];
+    __shared__ float3 pos[64];
+    // currently, this is not actually working, just a toy system
+    __shared__ unsigned int histogram[64];
+    // get the number of particles in the ref cell
+    unsigned int num_particles = it[2*cell_idx+1] - it[2*cell_idx+0];
+    // load into shared mem
+    if (local_idx < num_particles)
+        {
+        ref_pos[local_idx] = ref_points[it[2*cell_idx+0] + local_idx];
+        ref_theta[local_idx].x = cosf(-ref_orientations[it[2*cell_idx+0] + local_idx]);
+        ref_theta[local_idx].y = sinf(-ref_orientations[it[2*cell_idx+0] + local_idx]);
+        }
+    __syncthreads();
+    for (int check_cell = 0; check_cell < n_c; check_cell++)
+        {
+        // load the cell into shared mem
+        num_particles = it[2*check_cell+1] - it[2*check_cell+0];
+        if (local_idx < num_particles)
+            {
+            pos[local_idx] = points[it[2*check_cell+0] + local_idx];
+            }
+        __syncthreads();
+        for (int check_particle = 0; check_particle<num_particles; check_particle++)
+            {
+            float3 delta = box.wrap(make_float3(pos[check_particle].x - ref_pos[local_idx].x,
+                                                pos[check_particle].y - ref_pos[local_idx].y,
+                                                pos[check_particle].z - ref_pos[local_idx].z));
+            float rsq = (delta.x*delta.x + delta.y*delta.y + delta.z*delta.z);
+            if (rsq < 1e-6)
+                {
+                continue;
+                }
+            // rotate the interparticle vector
+            float x = delta.x*ref_theta[local_idx].x - delta.y*ref_theta[local_idx].y + max_x;
+            float y = delta.x*ref_theta[local_idx].y + delta.y*ref_theta[local_idx].x + max_y;
+            // find the bin to increment
+            float binx = floorf(x * dx_inv);
+            float biny = floorf(y * dy_inv);
+            if ((binx < 0) || (biny < 0))
+                {
+                continue;
+                }
+            unsigned int ibinx = (unsigned int)binx;
+            unsigned int ibiny = (unsigned int)biny;
+            // increment the bin
+            if ((ibinx < nbins_x) && (ibiny < nbins_y))
+                {
+                // printf("Incrementing bins\n");
+                // atomicAdd(&pmftArray[b_i(ibinx, ibiny)], 1);
+                atomicAdd(&histogram[local_idx], 1);
+                }
+            }
+        }
+    __syncthreads();
+    // copy back to array
+    atomicAdd(&pmftArray[local_idx], histogram[local_idx]);
+    __syncthreads();
+    }
 
 void cudaComputePCF(unsigned int *pmftArray,
                     unsigned int nbins_x,
@@ -107,6 +210,7 @@ void cudaComputePCF(unsigned int *pmftArray,
                     const unsigned int *nl,
                     const unsigned int *it,
                     const int total_num_neighbors,
+                    const Index3D& cell_indexer,
                     const Index2D& neighbor_indexer,
                     float3 *ref_points,
                     float *ref_orientations,
@@ -116,34 +220,66 @@ void cudaComputePCF(unsigned int *pmftArray,
                     unsigned int n_p,
                     unsigned int n_c)
     {
+    // printf("avg occupancy: %f\n", float(n_p)/float(n_c));
     // define grid and block size
-    int numThreadsPerBlock = 32;
-    int numBlocks = (n_ref / numThreadsPerBlock) + 1;
+    // int numThreadsPerBlock = 32;
+    // int numBlocks = (n_ref / numThreadsPerBlock) + 1;
+
+    // dim3 dimGrid(numBlocks);
+    // dim3 dimBlock(numThreadsPerBlock);
+    // checkCUDAError("prior to kernel execution");
+    // computePCF<<< dimGrid, dimBlock >>>(pmftArray,
+    //                                     nbins_x,
+    //                                     nbins_y,
+    //                                     box,
+    //                                     max_x,
+    //                                     max_y,
+    //                                     dx,
+    //                                     dy,
+    //                                     pl,
+    //                                     cl,
+    //                                     nl,
+    //                                     it,
+    //                                     total_num_neighbors,
+    //                                     cell_indexer,
+    //                                     neighbor_indexer,
+    //                                     ref_points,
+    //                                     ref_orientations,
+    //                                     n_ref,
+    //                                     points,
+    //                                     orientations,
+    //                                     n_p,
+    //                                     n_c);
+
+    int numThreadsPerBlock = 64;
+    int numBlocks = (n_c / numThreadsPerBlock) + 1;
 
     dim3 dimGrid(numBlocks);
     dim3 dimBlock(numThreadsPerBlock);
     checkCUDAError("prior to kernel execution");
-    computePCF<<< dimGrid, dimBlock >>>(pmftArray,
-                                        nbins_x,
-                                        nbins_y,
-                                        box,
-                                        max_x,
-                                        max_y,
-                                        dx,
-                                        dy,
-                                        pl,
-                                        cl,
-                                        nl,
-                                        it,
-                                        total_num_neighbors,
-                                        neighbor_indexer,
-                                        ref_points,
-                                        ref_orientations,
-                                        n_ref,
-                                        points,
-                                        orientations,
-                                        n_p,
-                                        n_c);
+    sharedPCF<<< dimGrid, dimBlock >>>(pmftArray,
+                                       nbins_x,
+                                       nbins_y,
+                                       box,
+                                       max_x,
+                                       max_y,
+                                       dx,
+                                       dy,
+                                       pl,
+                                       cl,
+                                       nl,
+                                       it,
+                                       total_num_neighbors,
+                                       cell_indexer,
+                                       neighbor_indexer,
+                                       ref_points,
+                                       ref_orientations,
+                                       n_ref,
+                                       points,
+                                       orientations,
+                                       n_p,
+                                       n_c);
+
     // block until the device has completed
     cudaDeviceSynchronize();
 
