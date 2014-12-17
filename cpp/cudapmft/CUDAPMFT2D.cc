@@ -71,7 +71,16 @@ CUDAPMFT2D::CUDAPMFT2D(float max_x, float max_y, float dx, float dy)
     m_pcf_array = boost::shared_array<unsigned int>(new unsigned int[m_nbins_x * m_nbins_y]);
     memset((void*)m_pcf_array.get(), 0, sizeof(unsigned int)*m_nbins_x*m_nbins_y);
 
+    // ensure that the resolution is not too high
+    // unsigned int num_bins = (2*(unsigned int)(sqrtf(m_max_x*m_max_x + m_max_y*m_max_y)/dx) *
+    //                          2*(unsigned int)(sqrtf(m_max_x*m_max_x + m_max_y*m_max_y)/dy));
+    // if (num_bins > 4096)
+    //     {
+    //     printf("requested num_bins = %d\n", num_bins);
+    //     throw runtime_error("requested resolution is too high");
+    //     }
     m_cc = new cudacell::CudaCell(d_box, sqrtf(m_max_x*m_max_x + m_max_y*m_max_y), sqrtf(m_max_x*m_max_x + m_max_y*m_max_y));
+    // m_cc = new cudacell::CudaCell(d_box, min(32.0*dx, 32.0*dy), sqrtf(m_max_x*m_max_x + m_max_y*m_max_y));
     // init memory for points, orientations
     createArray(&d_ref_points, sizeof(float3));
     createArray(&d_ref_orientations, sizeof(float));
@@ -159,7 +168,32 @@ void CUDAPMFT2D::compute(float3 *ref_points,
     //                   d_orientations,
     //                   Np,
     //                   m_cc->getNumCells());
-    cudaSharedPCF(d_pcf_array,
+
+    // cudaSharedPCF(d_pcf_array,
+    //                   m_nbins_x,
+    //                   m_nbins_y,
+    //                   d_box,
+    //                   m_max_x,
+    //                   m_max_y,
+    //                   m_dx,
+    //                   m_dy,
+    //                   m_cc->getCellWidth(),
+    //                   m_cc->getPointList(),
+    //                   m_cc->getCellList(),
+    //                   m_cc->getCellNeighborList(),
+    //                   m_cc->getIterList(),
+    //                   m_cc->getTotalNumNeighbors(),
+    //                   m_cc->getCellIndexer(),
+    //                   m_cc->getNeighborIndexer(),
+    //                   d_ref_points,
+    //                   d_ref_orientations,
+    //                   Nref,
+    //                   d_points,
+    //                   d_orientations,
+    //                   Np,
+    //                   m_cc->getNumCells());
+
+    cudaSharedTest(d_pcf_array,
                       m_nbins_x,
                       m_nbins_y,
                       d_box,

@@ -141,6 +141,16 @@ __global__ void sharedPCF(unsigned int *pmftArray,
     __shared__ float3 pos[64];
     // currently, this is not actually working, just a toy system
     __shared__ unsigned int histogram[1024];
+    unsigned int multiple = (1024/64) + 1;
+    for (unsigned int times = 0; times < multiple; times++)
+        {
+        // avoids writing to inaccessible memory
+        if (!((times*64 + local_idx) < 1024))
+            {
+            break;
+            }
+        histogram[(times*64 + local_idx)] = 0;
+        }
     // get the number of particles in the ref cell
     unsigned int num_ref_particles = it[2*cell_idx+1] - it[2*cell_idx+0];
     float2 ref_cell_min = make_float2(cell_indexer(cell_idx).x*cell_width, cell_indexer(cell_idx).y*cell_width);
@@ -154,92 +164,82 @@ __global__ void sharedPCF(unsigned int *pmftArray,
         }
     __syncthreads();
     // this needs to be against neighbors
-    for (int check_cell = 0; check_cell < n_c; check_cell++)
+    for (int i = 0; i < total_num_neighbors; i++)
         {
-        float2 cell_min = make_float2(cell_indexer(check_cell).x*cell_width, cell_indexer(check_cell).y*cell_width);
-        float2 cell_max = make_float2((cell_indexer(check_cell).x+1)*cell_width, (cell_indexer(check_cell).y+1)*cell_width);
-        // determine which part of the histogram to load
-        // start with the x; because there are only 4 comparison, we can do this super simply
-        float2 min_f2 = make_float2(cell_min.x - ref_cell_min.x,cell_max.x - ref_cell_min.x);
-        float2 max_f2 = make_float2(cell_min.x - ref_cell_max.x,cell_max.x - ref_cell_max.x);
-        float lmin_x = min_f2.x;
-        if (lmin_x > min_f2.y)
+        // get the cell to be checked
+        unsigned int neigh_idx = nl[neighbor_indexer((unsigned int)i, cell_idx)];
+        // first, identify the geometry of the reference cell and check cell
+        uint3 ref_cell_coords = cell_indexer(cell_idx);
+        uint3 check_cell_coords = cell_indexer(neigh_idx);
+
+        // find the min/max x, y values
+
+        // min value in x, max value in y for the histogram
+        float2 min_max_x;
+        float2 min_max_y;
+
+        // the cell being checked is to the left
+        if (ref_cell_coords.x > check_cell_coords.x)
             {
-            lmin_x = min_f2.y;
+            min_max_x.x = check_cell_coords.x*cell_width - (ref_cell_coords.x + 1)*cell_width;
+            min_max_x.y = (check_cell_coords.x+1)*cell_width - ref_cell_coords.x*cell_width;
             }
-        if (lmin_x > max_f2.x)
+        // the cell being check is to the right
+        else if (ref_cell_coords.x < check_cell_coords.x)
             {
-            lmin_x = max_f2.x;
+            min_max_x.x = (check_cell_coords.x+1)*cell_width - ref_cell_coords.x*cell_width;
+            min_max_x.y = check_cell_coords.x*cell_width - (ref_cell_coords.x+1)*cell_width;
             }
-        if (lmin_x > max_f2.y)
+        // the cells are the same
+        else
             {
-            lmin_x = max_f2.y;
+            min_max_x.x = -cell_width;
+            min_max_x.y = cell_width;
             }
-        float lmax_x = min_f2.x;
-        if (lmax_x < min_f2.y)
+
+        // the cell being checked is to the left
+        if (ref_cell_coords.y > check_cell_coords.y)
             {
-            lmax_x = min_f2.y;
+            min_max_y.x = check_cell_coords.y*cell_width - (ref_cell_coords.y + 1)*cell_width;
+            min_max_y.y = (check_cell_coords.y+1)*cell_width - ref_cell_coords.y*cell_width;
             }
-        if (lmax_x < max_f2.x)
+        // the cell being check is to the right
+        else if (ref_cell_coords.y < check_cell_coords.y)
             {
-            lmax_x = max_f2.x;
+            min_max_y.x = (check_cell_coords.y+1)*cell_width - ref_cell_coords.y*cell_width;
+            min_max_y.y = check_cell_coords.y*cell_width - (ref_cell_coords.y+1)*cell_width;
             }
-        if (lmax_x < max_f2.y)
+        // the cells are the same
+        else
             {
-            lmax_x = max_f2.y;
+            min_max_y.x = -cell_width;
+            min_max_y.y = cell_width;
             }
-        // now do y; because there are only 4 comparison, we can do this super simply
-        min_f2 = make_float2(cell_min.y - ref_cell_min.y,cell_max.y - ref_cell_min.y);
-        max_f2 = make_float2(cell_min.y - ref_cell_max.y,cell_max.y - ref_cell_max.y);
-        float lmin_y = min_f2.x;
-        if (lmin_y > min_f2.y)
-            {
-            lmin_y = min_f2.y;
-            }
-        if (lmin_y > max_f2.x)
-            {
-            lmin_y = max_f2.x;
-            }
-        if (lmin_y > max_f2.y)
-            {
-            lmin_y = max_f2.y;
-            }
-        float lmax_y = min_f2.x;
-        if (lmax_y < min_f2.y)
-            {
-            lmax_y = min_f2.y;
-            }
-        if (lmax_y < max_f2.x)
-            {
-            lmax_y = max_f2.x;
-            }
-        if (lmax_y < max_f2.y)
-            {
-            lmax_y = max_f2.y;
-            }
-        float x_offset = (lmax_x - lmin_x) / 2.0;
-        float y_offset = (lmax_y - lmin_y) / 2.0;
+
+        // this should be just cell_width
+        // float x_offset = (lmax_x - lmin_x) / 2.0;
+        // float y_offset = (lmax_y - lmin_y) / 2.0;
         // determine the number of bins in the smaller histogram
-        unsigned int lbins_x = (unsigned int)(2*floorf((lmax_x - lmin_x) * dx_inv));
-        unsigned int lbins_y = (unsigned int)(2*floorf((lmax_y - lmin_y) * dy_inv));
+        unsigned int lbins_x = (unsigned int)(2*floorf(cell_width * dx_inv));
+        unsigned int lbins_y = (unsigned int)(2*floorf(cell_width * dy_inv));
         Index2D l_i = Index2D(lbins_x, lbins_y);
-        // printf("number of elements in the cell list: %d\n", (int)l_i.getNumElements());
         // now we have the min/max delta coordinates for the histogram
         // load the cell into shared mem
-        unsigned int num_particles = it[2*check_cell+1] - it[2*check_cell+0];
+        unsigned int num_particles = it[2*neigh_idx+1] - it[2*neigh_idx+0];
         // create the indexer
         Index2D thread_indexer = Index2D(num_particles, num_ref_particles);
+        // load particles into shared mem
         if (local_idx < num_particles)
             {
-            pos[local_idx] = points[it[2*check_cell+0] + local_idx];
+            pos[local_idx] = points[it[2*neigh_idx+0] + local_idx];
             }
         __syncthreads();
         // determine number of times for a thread to go through the list
         // for now, it's hardcoded
-        unsigned int multiple = (num_particles*num_ref_particles/64) + 1;
+        multiple = (num_particles*num_ref_particles/64) + 1;
         for (unsigned int times = 0; times < multiple; times++)
             {
-            if ((times*64 + local_idx) > num_particles*num_ref_particles)
+            if (!((times*64 + local_idx) < num_particles*num_ref_particles))
                 {
                 break;
                 }
@@ -254,8 +254,8 @@ __global__ void sharedPCF(unsigned int *pmftArray,
                 continue;
                 }
             // rotate the interparticle vector
-            float x = delta.x*ref_theta[p_idx.y].x - delta.y*ref_theta[p_idx.y].y + x_offset;
-            float y = delta.x*ref_theta[p_idx.y].y + delta.y*ref_theta[p_idx.y].x + y_offset;
+            float x = delta.x*ref_theta[p_idx.y].x - delta.y*ref_theta[p_idx.y].y + cell_width;
+            float y = delta.x*ref_theta[p_idx.y].y + delta.y*ref_theta[p_idx.y].x + cell_width;
             // find the bin to increment
             float binx = floorf(x * dx_inv);
             float biny = floorf(y * dy_inv);
@@ -278,8 +278,8 @@ __global__ void sharedPCF(unsigned int *pmftArray,
         // copy back to array
         multiple = (lbins_x*lbins_y/64) + 1;
         // find the global bin start
-        float binx = floorf((lmin_x + max_x) * dx_inv);
-        float biny = floorf((lmin_y + max_y) * dy_inv);
+        float binx = floorf((min_max_x.x + max_x) * dx_inv);
+        float biny = floorf((min_max_y.x + max_y) * dy_inv);
         unsigned int global_binx_min = (unsigned int)binx;
         unsigned int global_biny_min = (unsigned int)biny;
         // unsigned int idx_min = b_i(global_binx_min, global_biny_min);
@@ -292,11 +292,164 @@ __global__ void sharedPCF(unsigned int *pmftArray,
                 // the x bin min is fine, the y will change? or something
                 // wait what about
                 // find local bins
+                // this would appear that it is not writing out the cells to the correct positions
                 uint2 local_bins = l_i((times*64 + local_idx));
-                atomicAdd(&pmftArray[b_i(local_bins.x + global_binx_min, local_bins.y + global_biny_min)], histogram[(times*64 + local_idx)]);
+                // atomicAdd(&pmftArray[b_i(local_bins.x + global_binx_min, local_bins.y + global_biny_min)], histogram[(times*64 + local_idx)]);
+                if (((global_binx_min + local_bins.x) < nbins_x) && ((global_biny_min + local_bins.y) < nbins_y))
+                    {
+                    atomicAdd(&pmftArray[b_i(local_bins.x + global_binx_min, local_bins.y + global_biny_min)], 1);
+                    }
                 }
             }
         __syncthreads();
+        }
+    }
+
+__global__ void sharedTest(unsigned int *pmftArray,
+                           unsigned int nbins_x,
+                           unsigned int nbins_y,
+                           trajectory::CudaBox box,
+                           float max_x,
+                           float max_y,
+                           float dx,
+                           float dy,
+                           float cell_width,
+                           const unsigned int *pl,
+                           const unsigned int *cl,
+                           const unsigned int *nl,
+                           const unsigned int *it,
+                           const int total_num_neighbors,
+                           Index3D cell_indexer,
+                           Index2D neighbor_indexer,
+                           float3 *ref_points,
+                           float *ref_orientations,
+                           unsigned int n_ref,
+                           float3 *points,
+                           float *orientations,
+                           unsigned int n_p,
+                           unsigned int n_c)
+    {
+    // get global index
+    int idx = blockIdx.x*blockDim.x + threadIdx.x;
+    // get the cell index
+    int cell_idx = blockIdx.x;
+    // get the local index
+    int local_idx = threadIdx.x;
+    // precompute inverses for faster computation
+    float dx_inv = 1.0f / dx;
+    float dy_inv = 1.0f / dy;
+    // compute indexers
+    Index2D b_i = Index2D(nbins_x, nbins_y);
+    __shared__ unsigned int histogram[4096];
+    // consider increasing in size...64 is def to small
+    // maybe 512?
+    __shared__ float3 ref_pos[64];
+    __shared__ float2 ref_theta[64];
+    __shared__ float3 pos[64];
+    // get the number of particles in the ref cell
+    unsigned int num_ref_particles = it[2*cell_idx+1] - it[2*cell_idx+0];
+    // load into shared mem
+    // for now it must be kept lower; could cycle through multiple times if necessary
+    if (local_idx < num_ref_particles)
+        {
+        ref_pos[local_idx] = ref_points[it[2*cell_idx+0] + local_idx];
+        ref_theta[local_idx].x = cosf(-ref_orientations[it[2*cell_idx+0] + local_idx]);
+        ref_theta[local_idx].y = sinf(-ref_orientations[it[2*cell_idx+0] + local_idx]);
+        }
+    // don't sync til now; histogram not needed to be zero'd yet
+    __syncthreads();
+    // for each cell neighbor
+    for (int i = 0; i < total_num_neighbors; i++)
+        {
+        // get the cell to be checked
+        unsigned int neigh_idx = nl[neighbor_indexer((unsigned int)i, cell_idx)];
+
+        // load the cell into shared mem
+        unsigned int num_particles = it[2*neigh_idx+1] - it[2*neigh_idx+0];
+        // create the indexer
+        Index2D thread_indexer = Index2D(num_particles, num_ref_particles);
+        // load particles into shared mem
+        if (local_idx < num_particles)
+            {
+            pos[local_idx] = points[it[2*neigh_idx+0] + local_idx];
+            }
+        __syncthreads();
+        // now, populate the histogram
+        // multipass
+        // determine number of times for a thread to go through the list
+        // determine how many pairs to handle at a time
+        // ceil wasn't behaving properly...lol
+
+        unsigned int n_pairs = num_ref_particles*num_ref_particles;
+        unsigned int n_pass_blocks = floorf(n_pairs/4096) + 1;
+        unsigned int n_pass_threads = floorf(4096/blockDim.x) + 1;
+        Index3D multipass_indexer = Index3D(blockDim.x, n_pass_threads, n_pass_blocks);
+        for (unsigned int n_times_blocks = 0; n_times_blocks < n_pass_blocks; n_times_blocks++)
+            {
+            // reset the histogram
+            for (unsigned int n_times = 0; n_times < (floorf(4096/blockDim.x)+1); n_times++)
+                {
+                // avoids writing to inaccessible memory
+                if (!((n_times*blockDim.x + local_idx) < 4096))
+                    {
+                    break;
+                    }
+                histogram[(n_times*blockDim.x + local_idx)] = 0;
+                }
+            for (unsigned int n_times_threads = 0; n_times_threads < n_pass_threads; n_times_threads++)
+                {
+                // get the index to handle
+                unsigned int my_index = multipass_indexer(local_idx, n_times_threads, n_times_blocks);
+                // check to make sure the pair exists
+                if (!(my_index < num_particles*num_ref_particles))
+                    {
+                    break;
+                    }
+                // get the pair index
+                uint2 pair_idx = thread_indexer(my_index);
+                float3 delta = box.wrap(make_float3(pos[pair_idx.x].x - ref_pos[pair_idx.y].x,
+                                                    pos[pair_idx.x].y - ref_pos[pair_idx.y].y,
+                                                    pos[pair_idx.x].z - ref_pos[pair_idx.y].z));
+                float rsq = (delta.x*delta.x + delta.y*delta.y + delta.z*delta.z);
+                if (rsq < 1e-6)
+                    {
+                    continue;
+                    }
+                // rotate the interparticle vector
+                float x = delta.x*ref_theta[pair_idx.y].x - delta.y*ref_theta[pair_idx.y].y + max_x;
+                float y = delta.x*ref_theta[pair_idx.y].y + delta.y*ref_theta[pair_idx.y].x + max_y;
+                // find the bin to increment
+                float binx = floorf(x * dx_inv);
+                float biny = floorf(y * dy_inv);
+                if ((binx < 0) || (biny < 0))
+                    {
+                    continue;
+                    }
+                unsigned int ibinx = (unsigned int)binx;
+                unsigned int ibiny = (unsigned int)biny;
+                // log bin to be incremented
+                if ((ibinx < nbins_x) && (ibiny < nbins_y))
+                    {
+                    histogram[blockDim.x*n_pass_threads + local_idx] = b_i(ibinx, ibiny);
+                    atomicAdd(&pmftArray[b_i(ibinx, ibiny)], 1);
+                    // if (local_idx == 0)
+                    //     printf("%d\n", histogram[blockDim.x*n_pass_threads + local_idx]);
+                    }
+                }
+            __syncthreads();
+            // now we have a complete block of 4096 values to increment
+            for (unsigned int n_times = 0; n_times < (floorf(4096/blockDim.x)+1); n_times++)
+                {
+                // avoids writing to inaccessible memory
+                if (!((n_times*blockDim.x + local_idx) < 4096))
+                    {
+                    break;
+                    }
+                // atomicAdd(&pmftArray[histogram[n_times*blockDim.x + local_idx]], 1);
+                // pmftArray[histogram[n_times*blockDim.x + local_idx]] += 1;
+                }
+            __syncthreads();
+            }
         }
     }
 
@@ -415,6 +568,71 @@ void cudaSharedPCF(unsigned int *pmftArray,
                                        orientations,
                                        n_p,
                                        n_c);
+
+    // block until the device has completed
+    cudaDeviceSynchronize();
+
+    // check if kernel execution generated an error
+    checkCUDAError("kernel execution");
+    }
+
+void cudaSharedTest(unsigned int *pmftArray,
+                    unsigned int nbins_x,
+                    unsigned int nbins_y,
+                    trajectory::CudaBox &box,
+                    float max_x,
+                    float max_y,
+                    float dx,
+                    float dy,
+                    float cell_width,
+                    const unsigned int *pl,
+                    const unsigned int *cl,
+                    const unsigned int *nl,
+                    const unsigned int *it,
+                    const int total_num_neighbors,
+                    const Index3D& cell_indexer,
+                    const Index2D& neighbor_indexer,
+                    float3 *ref_points,
+                    float *ref_orientations,
+                    unsigned int n_ref,
+                    float3 *points,
+                    float *orientations,
+                    unsigned int n_p,
+                    unsigned int n_c)
+    {
+
+    int numThreadsPerBlock = 256;
+    // we will be just using "cells" of the pmft for this exercise
+    // printf("%d grid points divided into %d cells\n", (nbins_x*nbins_y), (nbins_x/32 + 1)*(nbins_y/32 + 1));
+    // printf("that's %d by %d = %f\n", nbins_x, (nbins_x/32 + 1), (float)nbins_x/(float)(nbins_x/32 + 1));
+    int numBlocks = n_c;
+
+    dim3 dimGrid(numBlocks);
+    dim3 dimBlock(numThreadsPerBlock);
+    checkCUDAError("prior to kernel execution");
+    sharedTest<<< dimGrid, dimBlock >>>(pmftArray,
+                                        nbins_x,
+                                        nbins_y,
+                                        box,
+                                        max_x,
+                                        max_y,
+                                        dx,
+                                        dy,
+                                        cell_width,
+                                        pl,
+                                        cl,
+                                        nl,
+                                        it,
+                                        total_num_neighbors,
+                                        cell_indexer,
+                                        neighbor_indexer,
+                                        ref_points,
+                                        ref_orientations,
+                                        n_ref,
+                                        points,
+                                        orientations,
+                                        n_p,
+                                        n_c);
 
     // block until the device has completed
     cudaDeviceSynchronize();
