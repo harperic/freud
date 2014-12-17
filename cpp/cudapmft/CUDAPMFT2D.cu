@@ -340,12 +340,9 @@ __global__ void sharedTest(unsigned int *pmftArray,
     float dy_inv = 1.0f / dy;
     // compute indexers
     Index2D b_i = Index2D(nbins_x, nbins_y);
-    __shared__ unsigned int histogram[4096];
-    // consider increasing in size...64 is def to small
-    // maybe 512?
-    __shared__ float3 ref_pos[64];
-    __shared__ float2 ref_theta[64];
-    __shared__ float3 pos[64];
+    __shared__ float3 ref_pos[1024];
+    __shared__ float2 ref_theta[1024];
+    __shared__ float3 pos[1024];
     // get the number of particles in the ref cell
     unsigned int num_ref_particles = it[2*cell_idx+1] - it[2*cell_idx+0];
     // load into shared mem
@@ -356,13 +353,12 @@ __global__ void sharedTest(unsigned int *pmftArray,
         ref_theta[local_idx].x = cosf(-ref_orientations[it[2*cell_idx+0] + local_idx]);
         ref_theta[local_idx].y = sinf(-ref_orientations[it[2*cell_idx+0] + local_idx]);
         }
-    // don't sync til now; histogram not needed to be zero'd yet
     __syncthreads();
     // for each cell neighbor
-    for (int i = 0; i < total_num_neighbors; i++)
+    for (unsigned int i = 0; i < total_num_neighbors; i++)
         {
         // get the cell to be checked
-        unsigned int neigh_idx = nl[neighbor_indexer((unsigned int)i, cell_idx)];
+        unsigned int neigh_idx = nl[neighbor_indexer(i, cell_idx)];
 
         // load the cell into shared mem
         unsigned int num_particles = it[2*neigh_idx+1] - it[2*neigh_idx+0];
@@ -375,81 +371,48 @@ __global__ void sharedTest(unsigned int *pmftArray,
             }
         __syncthreads();
         // now, populate the histogram
-        // multipass
-        // determine number of times for a thread to go through the list
-        // determine how many pairs to handle at a time
-        // ceil wasn't behaving properly...lol
-
+        // create the multipass indexer
         unsigned int n_pairs = num_ref_particles*num_ref_particles;
-        unsigned int n_pass_blocks = floorf(n_pairs/4096) + 1;
-        unsigned int n_pass_threads = floorf(4096/blockDim.x) + 1;
-        Index3D multipass_indexer = Index3D(blockDim.x, n_pass_threads, n_pass_blocks);
-        for (unsigned int n_times_blocks = 0; n_times_blocks < n_pass_blocks; n_times_blocks++)
+        unsigned int n_pass_threads = floorf(thread_indexer.getNumElements()/blockDim.x) + 1;
+        Index2D multipass_indexer = Index2D(blockDim.x, n_pass_threads);
+
+        for (unsigned int n_pass = 0; n_pass < n_pass_threads; n_pass++)
             {
-            // reset the histogram
-            for (unsigned int n_times = 0; n_times < (floorf(4096/blockDim.x)+1); n_times++)
+            unsigned int my_index = multipass_indexer(local_idx, n_pass);
+            // check to make sure the pair exists
+            if (!(my_index < n_pairs))
                 {
-                // avoids writing to inaccessible memory
-                if (!((n_times*blockDim.x + local_idx) < 4096))
-                    {
-                    break;
-                    }
-                histogram[(n_times*blockDim.x + local_idx)] = 0;
+                break;
                 }
-            for (unsigned int n_times_threads = 0; n_times_threads < n_pass_threads; n_times_threads++)
-                {
-                // get the index to handle
-                unsigned int my_index = multipass_indexer(local_idx, n_times_threads, n_times_blocks);
-                // check to make sure the pair exists
-                if (!(my_index < num_particles*num_ref_particles))
-                    {
-                    break;
-                    }
                 // get the pair index
-                uint2 pair_idx = thread_indexer(my_index);
-                float3 delta = box.wrap(make_float3(pos[pair_idx.x].x - ref_pos[pair_idx.y].x,
-                                                    pos[pair_idx.x].y - ref_pos[pair_idx.y].y,
-                                                    pos[pair_idx.x].z - ref_pos[pair_idx.y].z));
-                float rsq = (delta.x*delta.x + delta.y*delta.y + delta.z*delta.z);
-                if (rsq < 1e-6)
-                    {
-                    continue;
-                    }
-                // rotate the interparticle vector
-                float x = delta.x*ref_theta[pair_idx.y].x - delta.y*ref_theta[pair_idx.y].y + max_x;
-                float y = delta.x*ref_theta[pair_idx.y].y + delta.y*ref_theta[pair_idx.y].x + max_y;
-                // find the bin to increment
-                float binx = floorf(x * dx_inv);
-                float biny = floorf(y * dy_inv);
-                if ((binx < 0) || (biny < 0))
-                    {
-                    continue;
-                    }
-                unsigned int ibinx = (unsigned int)binx;
-                unsigned int ibiny = (unsigned int)biny;
-                // log bin to be incremented
-                if ((ibinx < nbins_x) && (ibiny < nbins_y))
-                    {
-                    histogram[blockDim.x*n_pass_threads + local_idx] = b_i(ibinx, ibiny);
-                    atomicAdd(&pmftArray[b_i(ibinx, ibiny)], 1);
-                    // if (local_idx == 0)
-                    //     printf("%d\n", histogram[blockDim.x*n_pass_threads + local_idx]);
-                    }
-                }
-            __syncthreads();
-            // now we have a complete block of 4096 values to increment
-            for (unsigned int n_times = 0; n_times < (floorf(4096/blockDim.x)+1); n_times++)
+            uint2 pair_idx = thread_indexer(my_index);
+            float3 delta = box.wrap(make_float3(pos[pair_idx.x].x - ref_pos[pair_idx.y].x,
+                                                pos[pair_idx.x].y - ref_pos[pair_idx.y].y,
+                                                pos[pair_idx.x].z - ref_pos[pair_idx.y].z));
+            float rsq = (delta.x*delta.x + delta.y*delta.y + delta.z*delta.z);
+            if (rsq < 1e-6)
                 {
-                // avoids writing to inaccessible memory
-                if (!((n_times*blockDim.x + local_idx) < 4096))
-                    {
-                    break;
-                    }
-                // atomicAdd(&pmftArray[histogram[n_times*blockDim.x + local_idx]], 1);
-                // pmftArray[histogram[n_times*blockDim.x + local_idx]] += 1;
+                continue;
                 }
-            __syncthreads();
+            // rotate the interparticle vector
+            float x = delta.x*ref_theta[pair_idx.y].x - delta.y*ref_theta[pair_idx.y].y + max_x;
+            float y = delta.x*ref_theta[pair_idx.y].y + delta.y*ref_theta[pair_idx.y].x + max_y;
+            // find the bin to increment
+            float binx = floorf(x * dx_inv);
+            float biny = floorf(y * dy_inv);
+            if ((binx < 0) || (biny < 0))
+                {
+                continue;
+                }
+            unsigned int ibinx = (unsigned int)binx;
+            unsigned int ibiny = (unsigned int)biny;
+            // log bin to be incremented
+            if ((ibinx < nbins_x) && (ibiny < nbins_y))
+                {
+                atomicAdd(&pmftArray[b_i(ibinx, ibiny)], 1);
+                }
             }
+        __syncthreads();
         }
     }
 
@@ -478,7 +441,7 @@ void cudaComputePCF(unsigned int *pmftArray,
     {
     // printf("avg occupancy: %f\n", float(n_p)/float(n_c));
     // define grid and block size
-    int numThreadsPerBlock = 32;
+    int numThreadsPerBlock = 256;
     int numBlocks = (n_ref / numThreadsPerBlock) + 1;
 
     dim3 dimGrid(numBlocks);
@@ -603,8 +566,6 @@ void cudaSharedTest(unsigned int *pmftArray,
 
     int numThreadsPerBlock = 256;
     // we will be just using "cells" of the pmft for this exercise
-    // printf("%d grid points divided into %d cells\n", (nbins_x*nbins_y), (nbins_x/32 + 1)*(nbins_y/32 + 1));
-    // printf("that's %d by %d = %f\n", nbins_x, (nbins_x/32 + 1), (float)nbins_x/(float)(nbins_x/32 + 1));
     int numBlocks = n_c;
 
     dim3 dimGrid(numBlocks);
