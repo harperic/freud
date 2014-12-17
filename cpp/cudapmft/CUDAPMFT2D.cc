@@ -193,7 +193,7 @@ void CUDAPMFT2D::compute(float3 *ref_points,
     //                   Np,
     //                   m_cc->getNumCells());
 
-    cudaSharedTest(d_pcf_array,
+    cudaSharedPCF(d_pcf_array,
                       m_nbins_x,
                       m_nbins_y,
                       d_box,
