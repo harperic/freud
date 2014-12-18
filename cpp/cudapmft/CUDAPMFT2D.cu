@@ -307,7 +307,8 @@ __global__ void sharedPCF(unsigned int *pmftArray,
             unsigned int ibiny = (unsigned int)biny;
             if ((ibinx < nbins_x) && (ibiny < nbins_y))
                 {
-                atomicAdd(&pmftArray[b_i(ibinx, ibiny)], 1);
+                // atomicAdd(&pmftArray[b_i(ibinx, ibiny)], 1);
+                pmftArray[b_i(ibinx, ibiny)]++;
                 }
             }
         __syncthreads();
@@ -339,7 +340,7 @@ void cudaComputePCF(unsigned int *pmftArray,
     {
     // printf("avg occupancy: %f\n", float(n_p)/float(n_c));
     // define grid and block size
-    int numThreadsPerBlock = 256;
+    int numThreadsPerBlock = 64;
     int numBlocks = (n_ref / numThreadsPerBlock) + 1;
 
     dim3 dimGrid(numBlocks);
@@ -375,7 +376,7 @@ void cudaComputePCF(unsigned int *pmftArray,
     checkCUDAError("kernel execution");
     }
 
-void cudacellPCF(unsigned int *pmftArray,
+void cudaCellPCF(unsigned int *pmftArray,
                    unsigned int nbins_x,
                    unsigned int nbins_y,
                    trajectory::CudaBox &box,
@@ -400,7 +401,7 @@ void cudacellPCF(unsigned int *pmftArray,
                    unsigned int n_c)
     {
 
-    int numThreadsPerBlock = 256;
+    int numThreadsPerBlock = 64;
     // we will be just using "cells" of the pmft for this exercise
     int numBlocks = n_c;
 
@@ -463,7 +464,7 @@ void cudaSharedPCF(unsigned int *pmftArray,
                    unsigned int n_c)
     {
 
-    int numThreadsPerBlock = 256;
+    int numThreadsPerBlock = 64;
     // we will be just using "cells" of the pmft for this exercise
     int numBlocks = n_c;
 

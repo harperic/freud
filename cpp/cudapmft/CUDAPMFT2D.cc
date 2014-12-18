@@ -79,7 +79,8 @@ CUDAPMFT2D::CUDAPMFT2D(float max_x, float max_y, float dx, float dy)
     //     printf("requested num_bins = %d\n", num_bins);
     //     throw runtime_error("requested resolution is too high");
     //     }
-    m_cc = new cudacell::CudaCell(d_box, sqrtf(m_max_x*m_max_x + m_max_y*m_max_y), sqrtf(m_max_x*m_max_x + m_max_y*m_max_y));
+    // m_cc = new cudacell::CudaCell(d_box, sqrtf(m_max_x*m_max_x + m_max_y*m_max_y), sqrtf(m_max_x*m_max_x + m_max_y*m_max_y));
+    m_cc = new cudacell::CudaCell(d_box, sqrtf(5*5 + 5*5), sqrtf(m_max_x*m_max_x + m_max_y*m_max_y));
     // m_cc = new cudacell::CudaCell(d_box, min(32.0*dx, 32.0*dy), sqrtf(m_max_x*m_max_x + m_max_y*m_max_y));
     // init memory for points, orientations
     createArray(&d_ref_points, sizeof(float3));
