@@ -115,6 +115,124 @@ class CombinePCFXY2D
 /*! \brief Helper class to compute PMF in parallel with the cell list
 */
 
+class AtomicPMFXY2D
+    {
+    private:
+        tbb::atomic<unsigned int> *m_pcf_array;
+        unsigned int m_nbins_x;
+        unsigned int m_nbins_y;
+        const trajectory::Box m_box;
+        const float m_max_x;
+        const float m_max_y;
+        const float m_dx;
+        const float m_dy;
+        const locality::LinkCell *m_lc;
+        vec3<float> *m_ref_points;
+        float *m_ref_orientations;
+        const unsigned int m_Nref;
+        vec3<float> *m_points;
+        float *m_orientations;
+        const unsigned int m_Np;
+    public:
+        AtomicPMFXY2D(tbb::atomic<unsigned int> *pcf_array,
+                       unsigned int nbins_x,
+                       unsigned int nbins_y,
+                       const trajectory::Box &box,
+                       const float max_x,
+                       const float max_y,
+                       const float dx,
+                       const float dy,
+                       const locality::LinkCell *lc,
+                       vec3<float> *ref_points,
+                       float *ref_orientations,
+                       unsigned int Nref,
+                       vec3<float> *points,
+                       float *orientations,
+                       unsigned int Np)
+            : m_pcf_array(pcf_array), m_nbins_x(nbins_x), m_nbins_y(nbins_y), m_box(box),
+              m_max_x(max_x), m_max_y(max_y), m_dx(dx), m_dy(dy), m_lc(lc), m_ref_points(ref_points),
+              m_ref_orientations(ref_orientations), m_Nref(Nref), m_points(points), m_orientations(orientations),
+              m_Np(Np)
+        {
+        }
+        void operator()( const blocked_range<size_t> &myR ) const
+            {
+            assert(m_ref_points);
+            assert(m_points);
+            assert(m_Nref > 0);
+            assert(m_Np > 0);
+
+            // precalc some values for faster computation within the loop
+            float dx_inv = 1.0f / m_dx;
+            float maxxsq = m_max_x * m_max_x;
+            float dy_inv = 1.0f / m_dy;
+            float maxysq = m_max_y * m_max_y;
+
+            Index2D b_i = Index2D(m_nbins_x, m_nbins_y);
+
+            // for each reference point
+            for (size_t i = myR.begin(); i != myR.end(); i++)
+                {
+                vec3<float> ref = m_ref_points[i];
+                rotmat2<float> myMat = rotmat2<float>::fromAngle(-m_ref_orientations[i]);
+                // get the cell the point is in
+                unsigned int ref_cell = m_lc->getCell(ref);
+
+                // loop over all neighboring cells
+                const std::vector<unsigned int>& neigh_cells = m_lc->getCellNeighbors(ref_cell);
+                for (unsigned int neigh_idx = 0; neigh_idx < neigh_cells.size(); neigh_idx++)
+                    {
+                    unsigned int neigh_cell = neigh_cells[neigh_idx];
+
+                    // iterate over the particles in that cell
+                    locality::LinkCell::iteratorcell it = m_lc->itercell(neigh_cell);
+                    for (unsigned int j = it.next(); !it.atEnd(); j=it.next())
+                        {
+                        vec3<float> delta = m_box.wrap(m_points[j] - ref);
+                        float rsq = dot(delta, delta);
+
+                        // check that the particle is not checking itself
+                        // 1e-6 is an arbitrary value that could be set differently if needed
+                        if (rsq < 1e-6)
+                            {
+                            continue;
+                            }
+
+                        // rotate interparticle vector
+                        vec2<float> myVec(delta.x, delta.y);
+                        vec2<float> rotVec = myMat * myVec;
+                        float x = rotVec.x + m_max_x;
+                        float y = rotVec.y + m_max_y;
+
+                        // find the bin to increment
+                        // there is no explicit "rsq < rcut" check and this is relying on undefined behavior
+                        // needs to be updated to what occurs in the cuda branch
+                        float binx = floorf(x * dx_inv);
+                        float biny = floorf(y * dy_inv);
+                        // fast float to int conversion with truncation
+                        #ifdef __SSE2__
+                        unsigned int ibinx = _mm_cvtt_ss2si(_mm_load_ss(&binx));
+                        unsigned int ibiny = _mm_cvtt_ss2si(_mm_load_ss(&biny));
+                        #else
+                        unsigned int ibinx = (unsigned int)(binx);
+                        unsigned int ibiny = (unsigned int)(biny);
+                        #endif
+
+                        // increment the bin
+                        if ((ibinx < m_nbins_x) && (ibiny < m_nbins_y))
+                            {
+                            m_pcf_array[b_i(ibinx, ibiny)]++;
+                            }
+                        }
+                    }
+                } // done looping over reference points
+            }
+    };
+
+//! \internal
+/*! \brief Helper class to compute PMF in parallel with the cell list
+*/
+
 class ComputePMFXY2D
     {
     private:
@@ -262,6 +380,24 @@ void PMFXY2D::compute(vec3<float> *ref_points,
         memset((void*)(*i), 0, sizeof(unsigned int)*m_nbins_x*m_nbins_y);
         }
     m_lc->computeCellList(m_box, points, Np);
+
+    // parallel_for(blocked_range<size_t>(0,Nref),
+    //              AtomicPMFXY2D((tbb::atomic<unsigned int>*)m_pcf_array.get(),
+    //                             m_nbins_x,
+    //                             m_nbins_y,
+    //                             m_box,
+    //                             m_max_x,
+    //                             m_max_y,
+    //                             m_dx,
+    //                             m_dy,
+    //                             m_lc,
+    //                             ref_points,
+    //                             ref_orientations,
+    //                             Nref,
+    //                             points,
+    //                             orientations,
+    //                             Np));
+
     parallel_for(blocked_range<size_t>(0,Nref),
                  ComputePMFXY2D(m_local_pcf_array,
                                 m_nbins_x,

@@ -167,20 +167,21 @@ __global__ void cellPCF(unsigned int *pmftArray,
             // get the pair index
             uint2 pair_idx = thread_indexer(my_index);
             // get the ref_point
-            float3 ref_point = cl[it[2*cell_idx+0]+pair_idx.y];
-            float ref_angle = cl[it[2*cell_idx+0]+pair_idx.y];
-            float3 check_point = cl[it[2*neigh_idx+0]+pair_idx.x];
-            float3 delta = box.wrap(make_float3(pos[check_point].x - ref_pos[ref_point].x,
-                                                pos[check_point].y - ref_pos[ref_point].y,
-                                                pos[check_point].z - ref_pos[ref_point].z));
+            unsigned int ref_point = cl[it[2*cell_idx+0]+pair_idx.y];
+            unsigned int check_point = cl[it[2*neigh_idx+0]+pair_idx.x];
+            float3 delta = box.wrap(make_float3(points[check_point].x - ref_points[ref_point].x,
+                                                points[check_point].y - ref_points[ref_point].y,
+                                                points[check_point].z - ref_points[ref_point].z));
             float rsq = (delta.x*delta.x + delta.y*delta.y + delta.z*delta.z);
             if (rsq < 1e-6)
                 {
                 continue;
                 }
             // rotate the interparticle vector
-            float x = delta.x*ref_theta[ref_point].x - delta.y*ref_theta[ref_point].y + max_x;
-            float y = delta.x*ref_theta[ref_point].y + delta.y*ref_theta[ref_point].x + max_y;
+            float cos_theta = cosf(-ref_orientations[ref_point]);
+            float sin_theta = sinf(-ref_orientations[ref_point]);
+            float x = delta.x*cos_theta - delta.y*sin_theta + max_x;
+            float y = delta.x*sin_theta + delta.y*cos_theta + max_y;
             // find the bin to increment
             float binx = floorf(x * dx_inv);
             float biny = floorf(y * dy_inv);
