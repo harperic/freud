@@ -169,7 +169,7 @@ void CUDAPMFT2D::compute(float3 *ref_points,
     //                   Np,
     //                   m_cc->getNumCells());
 
-    // cudaSharedPCF(d_pcf_array,
+    // cudaCellPCF(d_pcf_array,
     //                   m_nbins_x,
     //                   m_nbins_y,
     //                   d_box,
