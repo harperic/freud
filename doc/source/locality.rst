@@ -1,3 +1,5 @@
+.. _locality:
+
 ===============
 Locality Module
 ===============

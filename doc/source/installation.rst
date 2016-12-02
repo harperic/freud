@@ -1,3 +1,5 @@
+.. _installation:
+
 ============
 Installation
 ============
@@ -86,7 +88,6 @@ To install freud with conda, make sure you have the glotzer channel and conda-pr
 .. code-block:: bash
 
     $: conda config --add channels glotzer
-    $: conda config --add channels file:///nfs/glotzer/software/conda-private
 
 Now, install freud
 
@@ -95,25 +96,6 @@ Now, install freud
     $: conda install freud
     # you may also install into a new environment
     $: conda create -n my_env python=3.5 freud
-
-glotzpkgs install
-+++++++++++++++++
-
-*Please refer to the official `glotzpkgs <http://glotzerlab.engin.umich.edu/glotzpkgs/>`_ documentation*
-
-*Make sure you have a working glotzpkgs env.*
-
-.. code-block:: bash
-
-    # install from provided binary
-    $: gpacman -S freud
-    # installing your own version
-    $: cd /pth/to/glotzpkgs/freud
-    $: gmakepkg
-    # tab completion is your friend here
-    $: gpacman -U freud-<version>-flux.pkg.tar.gz
-    # now you can load the binary
-    $: module load freud
 
 Compile from source
 +++++++++++++++++++

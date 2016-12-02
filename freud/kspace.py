@@ -566,7 +566,7 @@ class SingleCell3D:
 class FTfactory:
     """Factory to return an FT object of the requested type
     """
-    def __init__(self):
+    def __init__(self, *args, **kwargs):
         """Constructor
         """
         self.name_list = ['Delta']
@@ -582,10 +582,10 @@ class FTfactory:
         return self.name_list
 
     def getFTobject(self, i, args=None):
-        """Get a new instance of an FT type from list returned by :py:meth:`~.FTfactory.getFTlist()`
+        """Get a new instance of an FT type from list returned by :meth:`~.FTfactory.getFTlist()`
 
-        :param i: index into list returned by :py:meth:`~.FTfactory.getFTlist()`
-        :param args: argument object used to initialize FT, overriding default set at :py:meth:`~.FTfactory.addFT()`
+        :param i: index into list returned by :meth:`~.FTfactory.getFTlist()`
+        :param args: argument object used to initialize FT, overriding default set at :meth:`~.FTfactory.addFT()`
         :type i: int
         :type args: :class:`list`
         """
@@ -597,11 +597,11 @@ class FTfactory:
     def addFT(self, name, constructor, args=None):
         """Add an FT class to the factory
 
-        :param name: identifying string to be returned by getFTlist()
+        :param name: identifying string to be returned by :meth:`~.FTfactory.getFTlist()`
         :param constructor: class / function name to be used to create new FT objects
         :param args: set default argument object to be used to construct FT objects
         :type name: str
-        :type constructor: :class:`class`
+        :type constructor: str
         :type args: :class:`list`
         """
         if name in self.name_list:
@@ -1279,7 +1279,7 @@ class DeltaSpot:
         """Generate intensity value(s) at sub-grid points
 
         :param cval: complex valued amplitude used to generate spot intensity
-        :type cval: :class:`np.complex`
+        :type cval: :class:`numpy.complex64`
         """
         return (numpy.conj(cval) * cval).real
 
@@ -1338,7 +1338,7 @@ class GaussianSpot(DeltaSpot):
         """Generate intensity value(s) at sub-grid points
 
         :param cval: complex valued amplitude used to generate spot intensity
-        :type cval: :class:`np.complex`
+        :type cval: :class:`numpy.complex64`
         """
         val = (numpy.conj(cval) * cval).real
         # calculate gaussian at grid points and multiply by val
