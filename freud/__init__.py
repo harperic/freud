@@ -1,4 +1,4 @@
-# Copyright (c) 2010-2016 The Regents of the University of Michigan
+# Copyright (c) 2010-2017 The Regents of the University of Michigan
 # This file is part of the Freud project, released under the BSD 3-Clause License.
 
 # __init__.py marks this directory as a python module
@@ -15,5 +15,6 @@ from . import interface
 from . import voronoi
 from . import pmft
 from . import index
+from . import cite
 
-__version__ = '0.6.0'
+__version__ = '0.6.1'
