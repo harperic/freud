@@ -11,6 +11,7 @@ Several modules are available currently. Feel free to contribute your own module
 
    bond
    box
+   citations
    cluster
    density
    indexer
