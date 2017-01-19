@@ -31,6 +31,9 @@ Parts of Freud use algorithms, libraries, etc. from the following:
 
 .. [Cit4] Wolfgan Lechner (2008) (DOI: 10.1063/Journal of Chemical Physics 129.114707)
 
+.. [Cit5] Eigen: a c++ linear algebra library.
+          URL http://eigen.tuxfamily.org
+
 Cite Module
 ===========
 
